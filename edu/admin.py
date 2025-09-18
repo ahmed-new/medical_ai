@@ -1,6 +1,7 @@
 from django.contrib import admin
 from .models import Year, Semester, Module, Subject, Lesson,Question, QuestionOption,FlashCard
 from django import forms
+from ckeditor.widgets import CKEditorWidget
 
 
 # ---- أساسيات الجداول الهرمية ----
@@ -38,18 +39,24 @@ class SubjectAdmin(admin.ModelAdmin):
     ordering      = ("module__semester__year__order", "module__semester__order", "module__order", "order", "id")
     autocomplete_fields = ("module",)
 
+class LessonAdminForm(forms.ModelForm):
+    content = forms.CharField(widget=CKEditorWidget(config_name="default"), required=False)
+    class Meta:
+        model = Lesson
+        fields = "__all__"
+
 @admin.register(Lesson)
 class LessonAdmin(admin.ModelAdmin):
+    form = LessonAdminForm
     list_display  = ("title", "subject", "order", "id")
     list_filter   = ("subject__module__semester__year", "subject__module", "subject")
     list_editable = ("order",)
     search_fields = ("title", "content")
-    ordering      = ("subject__module__semester__year__order", "subject__module__semester__order",
-                     "subject__module__order", "subject__order", "order", "id")
+    ordering      = ("subject__module__semester__year__order",
+                     "subject__module__semester__order",
+                     "subject__module__order",
+                     "subject__order", "order", "id")
     autocomplete_fields = ("subject",)
-
-
-
 
 
 
@@ -73,7 +80,7 @@ class QuestionAdmin(admin.ModelAdmin):
         (None, {
             "fields": (
                 "text", "question_type", "source_type",
-                "year", "subject", "lesson",
+                "year","module", "subject", "lesson",
                 "exam_kind", "exam_year", "grade",
                 "answer_text", "explanation"
             )

@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     "edu",
     "pgvector.django",
     'rest_framework_simplejwt',
+    "ckeditor",
 
     "whitenoise.runserver_nostatic",
 
