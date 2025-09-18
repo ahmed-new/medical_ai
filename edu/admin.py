@@ -73,7 +73,7 @@ class QuestionAdmin(admin.ModelAdmin):
         (None, {
             "fields": (
                 "text", "question_type", "source_type",
-                "year", "subject", "lesson",
+                "year","module", "subject", "lesson",
                 "exam_kind", "exam_year", "grade",
                 "answer_text", "explanation"
             )
