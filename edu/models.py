@@ -1,5 +1,9 @@
 # edu/models.py
 from django.db import models
+from cloudinary_storage.storage import RawMediaCloudinaryStorage
+from django.core.validators import FileExtensionValidator
+
+
 
 class Year(models.Model):
     class Code(models.TextChoices):
@@ -73,7 +77,13 @@ class Subject(models.Model):
 class Lesson(models.Model):
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name="lessons")
     title = models.CharField(max_length=200)
-    content = models.TextField(blank=True)  # ← الشرح (هيتملأ من الأدمن بانل)
+    content = models.TextField(blank=True) 
+    pdf = models.FileField(
+        upload_to="lesson_pdfs/%Y/%m/%d/",
+        storage=RawMediaCloudinaryStorage(),                # يرفع على raw/
+        validators=[FileExtensionValidator(["pdf"])],
+        blank=True, null=True,
+    ) 
     order = models.PositiveIntegerField(default=1, db_index=True)
 
     class Meta:

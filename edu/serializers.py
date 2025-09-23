@@ -22,10 +22,17 @@ class SubjectSerializer(serializers.ModelSerializer):
         model = Subject
         fields = ["id", "name", "order", "module"]
 
+        
+
 class LessonSerializer(serializers.ModelSerializer):
+    pdf_url = serializers.SerializerMethodField()
+
     class Meta:
         model = Lesson
-        fields = ["id", "title", "content", "order", "subject"]
+        fields = ["id", "title", "content", "order", "subject", "pdf_url"]
+
+    def get_pdf_url(self, obj):
+        return obj.pdf.url if obj.pdf else None
 
 
 

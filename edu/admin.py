@@ -59,7 +59,9 @@ class LessonAdmin(admin.ModelAdmin):
                      "subject__order", "order", "id")
     autocomplete_fields = ("subject",)
 
-
+    @admin.display(description="Has PDF")
+    def pdf_exists(self, obj):
+        return bool(obj.pdf)
 
 
 

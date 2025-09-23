@@ -63,13 +63,12 @@ CLOUDINARY_STORAGE = {
     "CLOUD_NAME":  config("CLOUDINARY_CLOUD_NAME"),
     "API_KEY":     config("CLOUDINARY_API_KEY"),
     "API_SECRET":  config("CLOUDINARY_API_SECRET"),
-    # "RESOURCE_TYPE": "image",
+    "RESOURCE_TYPE": "image",
 }
 
 # CKEditor
-CKEDITOR_UPLOAD_PATH = "uploads/"      # مسار مجلد الصور داخل Cloudinary
+CKEDITOR_UPLOAD_PATH = "uploads/"     
 
-# CKEDITOR_IMAGE_BACKEND = "pillow"
 
 CKEDITOR_CONFIGS = {
     "default": {
