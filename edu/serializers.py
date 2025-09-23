@@ -22,7 +22,7 @@ class SubjectSerializer(serializers.ModelSerializer):
         model = Subject
         fields = ["id", "name", "order", "module"]
 
-        
+
 
 class LessonSerializer(serializers.ModelSerializer):
     pdf_url = serializers.SerializerMethodField()
