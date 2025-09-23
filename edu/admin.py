@@ -2,6 +2,7 @@ from django.contrib import admin
 from .models import Year, Semester, Module, Subject, Lesson,Question, QuestionOption,FlashCard
 from django import forms
 from ckeditor.widgets import CKEditorWidget
+from ckeditor_uploader.widgets import CKEditorUploadingWidget
 
 
 # ---- أساسيات الجداول الهرمية ----
@@ -40,7 +41,7 @@ class SubjectAdmin(admin.ModelAdmin):
     autocomplete_fields = ("module",)
 
 class LessonAdminForm(forms.ModelForm):
-    content = forms.CharField(widget=CKEditorWidget(config_name="default"), required=False)
+    content = forms.CharField(widget=CKEditorUploadingWidget(config_name="default"), required=False)
     class Meta:
         model = Lesson
         fields = "__all__"

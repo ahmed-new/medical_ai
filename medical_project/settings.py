@@ -46,13 +46,45 @@ INSTALLED_APPS = [
     "edu",
     "pgvector.django",
     'rest_framework_simplejwt',
+    "cloudinary",
+    "cloudinary_storage",
     "ckeditor",
+    "ckeditor_uploader",
 
     "whitenoise.runserver_nostatic",
 
 ]
 
+CKEDITOR_STORAGE_BACKEND = "cloudinary_storage.storage.MediaCloudinaryStorage"
 
+
+
+CLOUDINARY_STORAGE = {
+    "CLOUD_NAME":  config("CLOUDINARY_CLOUD_NAME"),
+    "API_KEY":     config("CLOUDINARY_API_KEY"),
+    "API_SECRET":  config("CLOUDINARY_API_SECRET"),
+    # "RESOURCE_TYPE": "image",
+}
+
+# CKEditor
+CKEDITOR_UPLOAD_PATH = "uploads/"      # مسار مجلد الصور داخل Cloudinary
+
+# CKEDITOR_IMAGE_BACKEND = "pillow"
+
+CKEDITOR_CONFIGS = {
+    "default": {
+        "toolbar": "full",
+        "height": 450,
+        "width": "100%",
+        # السماح بخصائص إضافية على الصور (للريسبونسيف/ستايلات):
+        "extraAllowedContent": "img[!src,alt,width,height]{*}(*);figure;figcaption",
+    }
+}
+
+STORAGES = {
+    "default": {"BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage"},
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+}
 
 
 REST_FRAMEWORK = {
@@ -172,7 +204,12 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# # === Media (محليًا) ===
+# MEDIA_URL = "/media/"
+# MEDIA_ROOT = BASE_DIR / "media"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
