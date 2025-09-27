@@ -5,13 +5,15 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.db.models import Q
 from .policy import can_view_questions, sources_allowed ,can_view_lesson_content ,flashcard_visibility_q 
-from .models import Year, Semester, Module, Subject, Lesson ,Question ,FlashCard,FavoriteLesson
+from .models import Year, Semester, Module, Subject, Lesson ,Question ,FlashCard,FavoriteLesson ,LessonProgress,PlannerTask
 from .serializers import (
     YearSerializer, SemesterSerializer, ModuleSerializer,
     SubjectSerializer, LessonSerializer ,QuestionLiteSerializer ,QuestionDetailSerializer,LessonLiteSerializer,
-    FlashCardSerializer,FlashCardCreateUpdateSerializer ,FavoriteLessonSerializer
+    FlashCardSerializer,FlashCardCreateUpdateSerializer ,FavoriteLessonSerializer,PlannerTaskSerializer
 )
 from users.permissions import SingleDeviceOnly
+from datetime import date
+from users.streak import record_activity
 
 
 
@@ -136,7 +138,7 @@ class LessonDetail(APIView):
 
 class StudentQuestions(APIView):
     """
-    GET /api/v1/edu/questions/?lesson_id=&subject_id=&module_id=&limit=&offset=
+    GET /api/v1/edu/questions/?lesson_id=&subject_id=&module_id=&source_type=&question_type=&limit=&offset=
     - يُرجع أسئلة الطالب وفق سنّته وبحسب الباقة:
         * basic:     qbank فقط
         * premium:   qbank + exam_review
@@ -148,22 +150,25 @@ class StudentQuestions(APIView):
     def get(self, request):
         # صلاحية عرض الأسئلة حسب الباقة والاشتراك
         if not can_view_questions(request.user):
-            return Response({"detail": "Questions are not available for your current plan/subscription."}, status=403)
+            return Response(
+                {"detail": "Questions are not available for your current plan/subscription."},
+                status=403
+            )
 
         year = _get_user_year(request)
         if not year:
             return Response({"detail": "No study year set for user."}, status=400)
 
-        # نطاق السؤال
-        lesson_id  = request.query_params.get("lesson_id")
-        subject_id = request.query_params.get("subject_id")
-        module_id  = request.query_params.get("module_id")
+        # params
+        lesson_id     = request.query_params.get("lesson_id")
+        subject_id    = request.query_params.get("subject_id")
+        module_id     = request.query_params.get("module_id")
+        source_type   = request.query_params.get("source_type")     # new
+        question_type = request.query_params.get("question_type")   # new
 
         qs = Question.objects.all()
 
         # قصر حسب سنّة المستخدم
-        # لو السؤال مرتبط بـ lesson/subject/module/year فهنقصر accordingly
-        # (هنا نفترض إن بياناتك بتُملأ صح في واحد من الحقول دي)
         q_filters = Q()
         q_filters |= Q(lesson__subject__module__semester__year=year)
         q_filters |= Q(subject__module__semester__year=year)
@@ -179,9 +184,17 @@ class StudentQuestions(APIView):
         elif module_id:
             qs = qs.filter(module_id=module_id)
 
-        # قصر حسب مصادر الباقة
+        # allowed sources حسب الباقة
         allowed = list(sources_allowed(request.user))
-        qs = qs.filter(source_type__in=allowed).order_by("id")
+        qs = qs.filter(source_type__in=allowed)
+
+        # فلترة إضافية (لو متاحة ومطابقة للباقات)
+        if source_type and source_type in allowed:
+            qs = qs.filter(source_type=source_type)
+        if question_type in ["mcq", "written"]:
+            qs = qs.filter(question_type=question_type)
+
+        qs = qs.order_by("id")
 
         # Pagination بسيطة
         try:
@@ -203,6 +216,10 @@ class StudentQuestions(APIView):
             "offset": offset,
             "items": data,
         }, status=200)
+
+
+
+
 
 class StudentQuestionDetail(APIView):
     permission_classes = [IsAuthenticated, SingleDeviceOnly]
@@ -273,8 +290,13 @@ class FlashCardListCreate(APIView):
         if subject_id:
             qs = qs.filter(subject_id=subject_id)
 
-        # ✅ سياسة الرؤية حسب الخطة
-        qs = qs.filter(flashcard_visibility_q(request.user))
+        # فلتر لو الطالب عايز يشوف كروته فقط
+        mine = request.query_params.get("mine")
+        if mine in ("1", "true", "True"):
+            qs = qs.filter(owner_type="user", owner=request.user)
+        else:
+            # ✅ سياسة الرؤية حسب الخطة (Admin + User)
+            qs = qs.filter(flashcard_visibility_q(request.user))
 
         qs = qs.order_by("order", "-updated_at", "-id")[:200]
         return Response(FlashCardSerializer(qs, many=True).data, status=200)
@@ -313,6 +335,7 @@ class FlashCardListCreate(APIView):
             answer=(ser.validated_data.get("answer") or "").strip(),
             order=ser.validated_data.get("order") or 1,
         )
+        record_activity(request.user)
         return Response({"id": fc.id}, status=201)
 
 
@@ -360,11 +383,13 @@ class FlashCardDetail(APIView):
         if "order" in ser.validated_data:
             fc.order    = ser.validated_data.get("order") or fc.order
         fc.save()
+        record_activity(request.user)
         return Response({"detail": "updated"}, status=200)
 
     def delete(self, request, pk: int):
         deleted, _ = FlashCard.objects.filter(pk=pk, owner_type="user", owner=request.user).delete()
         if deleted:
+            record_activity(request.user)
             return Response({"detail": "deleted"}, status=200)
         return Response({"detail": "not found or not your card"}, status=404)
 
@@ -448,6 +473,7 @@ class FavoriteLessonAdd(APIView):
             return Response({"detail": "Lesson not found in your year"}, status=404)
 
         obj, created = FavoriteLesson.objects.get_or_create(user=request.user, lesson=lesson)
+        record_activity(request.user)
         return Response({"id": obj.id, "created": created}, status=201 if created else 200)
 
 class FavoriteLessonRemove(APIView):
@@ -472,4 +498,203 @@ class FavoriteLessonRemove(APIView):
                               lesson_id=lesson_id,
                               lesson__subject__module__semester__year=year)
                       .delete())
+        record_activity(request.user)
         return Response({"deleted": bool(deleted)}, status=200)
+    
+
+
+
+
+
+# falch_cards count 
+class FlashcardCountView(APIView):
+    permission_classes = [IsAuthenticated, SingleDeviceOnly]
+
+    def get(self, request):
+        year = _get_user_year(request)
+        if not year:
+            return Response({"count": 0}, status=200)
+
+        qs = FlashCard.objects.filter(
+            owner_type="user",
+            owner=request.user
+        ).filter(
+            Q(lesson__subject__module__semester__year=year) |
+            Q(subject__module__semester__year=year)
+        )
+
+        # (اختياري) نفس فلاتر الليست لو حبيت تستخدمها
+        lesson_id = request.query_params.get("lesson_id")
+        subject_id = request.query_params.get("subject_id")
+        if lesson_id:
+            qs = qs.filter(lesson_id=lesson_id)
+        if subject_id:
+            qs = qs.filter(subject_id=subject_id)
+
+        return Response({"count": qs.count()}, status=200)
+    
+
+# mark a lesson as 
+class LessonMarkDoneView(APIView):
+    permission_classes = [IsAuthenticated, SingleDeviceOnly]
+
+    def post(self, request, lesson_id):
+        try:
+            lesson = Lesson.objects.get(pk=lesson_id)
+        except Lesson.DoesNotExist:
+            return Response({"detail": "Lesson not found"}, status=404)
+
+        progress, created = LessonProgress.objects.get_or_create(
+            user=request.user,
+            lesson=lesson,
+            defaults={"is_done": True},
+        )
+
+        if not created and not progress.is_done:
+            progress.is_done = True
+            progress.save(update_fields=["is_done"])
+
+        record_activity(request.user)
+        return Response({"detail": "marked as done"}, status=200)
+# count how many lessons got done 
+
+# edu/views.py
+class LessonProgressIDs(APIView):
+    permission_classes = [IsAuthenticated, SingleDeviceOnly]
+
+    def get(self, request):
+        year = _get_user_year(request)
+        if not year:
+            return Response({"ids": []}, status=200)
+
+        qs = (LessonProgress.objects
+              .filter(user=request.user, is_done=True,
+                      lesson__subject__module__semester__year=year))
+
+        subject_id = request.query_params.get("subject_id")
+        if subject_id:
+            qs = qs.filter(lesson__subject_id=subject_id)
+
+        ids = list(qs.values_list("lesson_id", flat=True))
+        return Response({"ids": ids}, status=200)
+
+
+
+
+
+class LessonProgressCountView(APIView):
+    permission_classes = [IsAuthenticated, SingleDeviceOnly]
+
+    def get(self, request):
+        year = _get_user_year(request)
+        if not year:
+            return Response({"count": 0}, status=200)
+
+        qs = LessonProgress.objects.filter(
+            user=request.user,
+            is_done=True
+        ).filter(
+            Q(lesson__subject__module__semester__year=year)
+        )
+
+        subject_id = request.query_params.get("subject_id")
+        lesson_id  = request.query_params.get("lesson_id")
+        if subject_id:
+            qs = qs.filter(lesson__subject_id=subject_id)
+        if lesson_id:
+            qs = qs.filter(lesson_id=lesson_id)
+
+        return Response({"count": qs.count()}, status=200)
+    
+
+
+
+
+
+
+# planner logic get , create , delete
+
+class PlannerTaskListCreate(APIView):
+    permission_classes = [IsAuthenticated, SingleDeviceOnly]
+
+    def get(self, request):
+        qs = PlannerTask.objects.filter(user=request.user)
+        qs = qs.order_by("is_done", "due_date", "-id")
+        return Response(
+            PlannerTaskSerializer(qs, many=True).data,
+            status=200
+        )
+
+    def post(self, request):
+        data = request.data.copy()
+        data["user"] = request.user.id
+        ser = PlannerTaskSerializer(data=data)
+        if not ser.is_valid():
+            return Response(ser.errors, status=400)
+        obj = ser.save()
+        record_activity(request.user)
+        return Response({"id": obj.id}, status=201)
+
+
+
+
+
+class PlannerToday(APIView):
+    permission_classes = [IsAuthenticated, SingleDeviceOnly]
+    def get(self, request):
+        from datetime import date
+        qs = PlannerTask.objects.filter(user=request.user, due_date=date.today())
+        data = PlannerTaskSerializer(qs.order_by("is_done", "-id"), many=True).data
+        return Response({
+            "count": len(data),
+            "tasks": data
+        }, status=200)
+    
+
+class PlannerMarkDone(APIView):
+    permission_classes = [IsAuthenticated, SingleDeviceOnly]
+    def post(self, request, pk):
+        try: obj = PlannerTask.objects.get(pk=pk, user=request.user)
+        except PlannerTask.DoesNotExist: return Response({"detail":"not found"}, status=404)
+        obj.is_done=True; obj.save(update_fields=["is_done"])
+        record_activity(request.user)
+        return Response({"detail":"marked done"}, status=200)
+
+class PlannerMarkUndone(APIView):
+    permission_classes = [IsAuthenticated, SingleDeviceOnly]
+    def post(self, request, pk):
+        try: obj = PlannerTask.objects.get(pk=pk, user=request.user)
+        except PlannerTask.DoesNotExist: return Response({"detail":"not found"}, status=404)
+        obj.is_done=False; obj.save(update_fields=["is_done"])
+        record_activity(request.user)
+        return Response({"detail":"marked undone"}, status=200)
+
+class PlannerDelete(APIView):
+    permission_classes = [IsAuthenticated, SingleDeviceOnly]
+    def delete(self, request, pk):
+        deleted, _ = PlannerTask.objects.filter(pk=pk, user=request.user).delete()
+        record_activity(request.user)
+        return Response({"detail":"deleted" if deleted else "not found"}, status=200 if deleted else 404)
+
+
+
+
+# calculate user activity daily 
+
+class StreakMessageView(APIView):
+    permission_classes = [IsAuthenticated , SingleDeviceOnly]
+
+    def get(self, request):
+        streak = getattr(request.user, "streak", None)
+        n = streak.current_streak if streak else 0
+
+        if n <= 0:
+            msg = "Let’s start a new streak today!"
+        elif n == 1:
+            msg = "Great start! Day 1 in a row"
+        elif n == 2:
+            msg = "Keep it up! Day 2 in a row"
+        else:
+            msg = f"Nice! Day {n} in a row 🎉"
+
+        return Response({"current_streak": n, "message": msg}, status=200)

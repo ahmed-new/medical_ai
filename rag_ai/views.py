@@ -8,7 +8,7 @@ from django.conf import settings
 from users.permissions import SingleDeviceOnly
 from rag_ai.qa import ask, api_ask
 from rag_ai.utils import can_consume_ai, consume_ai
-
+from users.streak import record_activity
 # ===== الواجهة القديمة (تفضل كما هي) =========================================
 def chat_ui(request):
     return render(request, "rag/chat.html")
@@ -110,7 +110,8 @@ class AskApiV1Simple(APIView):
         try:
             display_name = getattr(request.user, "first_name", "") or getattr(request.user, "username", "") or "Student"
             # print(display_name)
-            data = api_ask(q, k=10, probes=10, max_chars=4000 ,student_name=display_name)  # قيم افتراضية ثابتة داخليًا
+            data = api_ask(q, k=10, probes=10, max_chars=4000 ,student_name=display_name) 
+            record_activity(request.user) # قيم افتراضية ثابتة داخليًا
             return Response({"answer": data.get("answer", "")}, status=200)
         except Exception as e:
             return Response({"error": {"code": "server_error", "message": str(e)}}, status=500)

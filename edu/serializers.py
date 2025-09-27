@@ -1,6 +1,6 @@
 # edu/serializers.py
 from rest_framework import serializers
-from .models import Year, Semester, Module, Subject, Lesson ,Question, QuestionOption,FlashCard,FavoriteLesson
+from .models import Year, Semester, Module, Subject, Lesson ,Question, QuestionOption,FlashCard,FavoriteLesson ,PlannerTask
 
 class YearSerializer(serializers.ModelSerializer):
     class Meta:
@@ -106,3 +106,12 @@ class FavoriteLessonSerializer(serializers.ModelSerializer):
     def get_lesson(self, obj):
         from .serializers import LessonLiteSerializer
         return LessonLiteSerializer(obj.lesson).data
+    
+
+
+
+class PlannerTaskSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PlannerTask
+        fields = ["id", "title", "notes", "due_date", "is_done", "user"]
+        read_only_fields = ["user"]

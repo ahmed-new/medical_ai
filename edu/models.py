@@ -101,11 +101,37 @@ class Lesson(models.Model):
         return f"{self.subject} / {self.title}"
 
 
+from django.conf import settings
+
+class LessonProgress(models.Model):
+    user   = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="lesson_progress")
+    lesson = models.ForeignKey("edu.Lesson", on_delete=models.CASCADE, related_name="progress")
+    is_done = models.BooleanField(default=True)
+    completed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("user", "lesson")
+        indexes = [
+            models.Index(fields=["user", "lesson"]),
+        ]
+
+    def __str__(self):
+        return f"{self.user} -> {self.lesson} (done={self.is_done})"
 
 
 
 
+class PlannerTask(models.Model):
+    user      = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="planner_tasks")
+    title     = models.CharField(max_length=200)
+    notes     = models.TextField(blank=True)
+    due_date  = models.DateField()              # تاريخ فقط
+    is_done   = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        indexes = [models.Index(fields=["user", "due_date", "is_done"])]
+        ordering = ["is_done", "due_date", "-id"]
 
 
 
@@ -157,6 +183,9 @@ class FlashCard(models.Model):
 
     class Meta:
         ordering = ["order", "-updated_at", "-id"]
+        indexes = [
+        models.Index(fields=["owner_type", "owner"]),
+         ]
 
     def __str__(self):
         who = "Admin" if self.owner_type == "admin" else f"User:{self.owner_id}"

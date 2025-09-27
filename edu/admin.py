@@ -72,23 +72,33 @@ class QuestionOptionInline(admin.TabularInline):
     min_num = 4
     max_num = 4
 
+class QuestionAdminForm(forms.ModelForm):
+    explanation = forms.CharField(
+        widget=CKEditorUploadingWidget(config_name="default"), 
+        required=False
+    )
+
+    class Meta:
+        model = Question
+        fields = "__all__"
+
 
 @admin.register(Question)
 class QuestionAdmin(admin.ModelAdmin):
-    list_display = ("id", "text", "question_type", "source_type", "exam_kind", "year", "subject", "lesson")
-    list_filter = ("question_type", "source_type", "exam_kind", "year", "subject", "lesson")
-    search_fields = ("text",)
+    form = QuestionAdminForm   # ← ربط الفورم هنا
+    list_display  = ("id", "text", "question_type", "source_type", "exam_kind", "year", "module", "subject", "lesson")
+    list_filter   = ("question_type", "source_type", "exam_kind", "year", "module", "subject", "lesson")
+    search_fields = ("text", "exam_year")
+    autocomplete_fields = ("year", "module", "subject", "lesson") 
+    list_select_related = ("year", "module", "subject", "lesson")
     inlines = [QuestionOptionInline]
-    fieldsets = (
-        (None, {
-            "fields": (
-                "text", "question_type", "source_type",
-                "year","module", "subject", "lesson",
-                "exam_kind", "exam_year", "grade",
-                "answer_text", "explanation"
-            )
-        }),
-    )
+    fieldsets = ((None, {"fields": (
+        "text", "question_type", "source_type",
+        "year", "module", "subject", "lesson",
+        "exam_kind", "exam_year", "grade",
+        "answer_text", "explanation"
+    )}),)
+
 
 
 

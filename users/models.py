@@ -2,6 +2,7 @@ from django.utils import timezone
 from datetime import timedelta
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.conf import settings
 
 
 
@@ -34,3 +35,12 @@ class User(AbstractUser):
             self.activated_at = timezone.now()
             self.expires_at = self.activated_at + timedelta(days=365)
         super().save(*args, **kwargs)
+
+
+
+
+
+class UserStreak(models.Model):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="streak")
+    current_streak = models.PositiveIntegerField(default=0)
+    last_active_date = models.DateField(null=True, blank=True)
