@@ -1,6 +1,6 @@
 # edu/models.py
 from django.db import models
-from cloudinary_storage.storage import RawMediaCloudinaryStorage
+from cloudinary_storage.storage import RawMediaCloudinaryStorage,MediaCloudinaryStorage
 from django.core.validators import FileExtensionValidator
 
 
@@ -74,8 +74,17 @@ class Subject(models.Model):
         return f"{self.module} / {self.name}"
 
 
+
+class PartType(models.TextChoices):
+        THEORETICAL = "theoretical", "Theoretical"
+        PRACTICAL   = "practical",  "Practical"
+
+
 class Lesson(models.Model):
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name="lessons")
+    part_type = models.CharField(
+        max_length=20, choices=PartType.choices, default=PartType.THEORETICAL, db_index=True
+     )
     title = models.CharField(max_length=200)
     content = models.TextField(blank=True) 
     pdf = models.FileField(
@@ -150,14 +159,6 @@ class PlannerTask(models.Model):
 
 
 
-
-
-
-
-
-
-
-
 from django.conf import settings
 class FlashCard(models.Model):
     class OwnerType(models.TextChoices):
@@ -191,15 +192,6 @@ class FlashCard(models.Model):
         who = "Admin" if self.owner_type == "admin" else f"User:{self.owner_id}"
         target = self.lesson_id or self.subject_id or "-"
         return f"[{who}] FC->{target}: {self.question[:40]}"
-
-
-
-
-
-
-
-
-
 
 
 
@@ -260,6 +252,10 @@ class Question(models.Model):
         related_name="questions",
         help_text="Use when the question is linked to a Subject (Exam Review, TBL, or Flipped)."
     )
+    
+    part_type = models.CharField(
+        max_length=20, choices=PartType.choices, default=PartType.THEORETICAL, db_index=True
+     )
     lesson = models.ForeignKey(
         "edu.Lesson",
         on_delete=models.CASCADE,
@@ -270,6 +266,15 @@ class Question(models.Model):
 
     # Basic data
     text = models.TextField(help_text="The main text of the question as shown to the student.")
+    image = models.ImageField(
+    upload_to="question_images/%Y/%m/%d/",
+    storage=MediaCloudinaryStorage(),
+    validators=[FileExtensionValidator(["jpg", "jpeg", "png"])],
+    blank=True,
+    null=True,
+    help_text="optional : image with question"
+)
+
     question_type = models.CharField(
         max_length=20, choices=QuestionType.choices,
         help_text="Type of the question: MCQ (multiple choice) or Written (open text)."

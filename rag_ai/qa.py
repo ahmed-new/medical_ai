@@ -1,6 +1,8 @@
 # rag_ai/qa.py
 import numpy as np
+from django.conf import settings
 import google.generativeai as genai
+import re
 from django.conf import settings
 from django.db import connection
 from rag_ai.models import Chunk
@@ -92,18 +94,21 @@ def build_context(chunks, max_chars=2500):
         total += len(seg)
     return "\n\n".join(ctx)
 
-def answer_with_gemini(question: str, context: str, student_name: str = "Student") -> str:
-    """
-    English, friendly medical-tutor voice for a Zagazig Univ. student.
-    STRICT: rely ONLY on provided context. No citations or References section.
-    Starts with student's name.
-    """
-    import re
-    genai.configure(api_key=settings.GOOGLE_API_KEY)
-    model = genai.GenerativeModel(settings.GEMINI_GEN_MODEL)
+from django.conf import settings
+import requests, re
 
-    prompt = f"""
-You are a clinical tutor helping a medical student at Zagazig University in Egypt.
+def answer_with_gemini(question: str, context: str, student_name: str = "Student") -> str:
+    if not context or not context.strip():
+        return "No references matched your question. (context is empty)"
+
+    model = getattr(settings, "GEMINI_GEN_MODEL", "gemini-1.5-flash")
+    url   = f"https://generativelanguage.googleapis.com/v1/models/{model}:generateContent"
+    headers = {
+        "Content-Type": "application/json",
+        "x-goog-api-key": settings.GOOGLE_API_KEY,
+    }
+
+    prompt = f"""You are a clinical tutor helping a medical student at Zagazig University in Egypt.
 
 You MUST rely ONLY on the following excerpts ("Context"). If a detail is not present in the Context, do NOT add it.
 Do NOT include any citations, bracketed references, source IDs, URLs, or a "References" section in your answer.
@@ -114,30 +119,58 @@ Style rules:
 - Prefer concise sentences and bullet points/steps where helpful.
 - Focus on: definition, urgent steps, why they matter, and common pitfalls.
 - If the Context is insufficient, reply exactly:
-"I cannot be certain from the available references."
+"I cannot be certain from the available references unliss user not asking for educational."
 
 Question:
 {question}
 
 Context:
-{context}
-"""
-    out = model.generate_content(prompt)
-    text = (getattr(out, "text", "") or "").strip()
+{context}""".strip()
+
+    payload = {
+        "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+        "generationConfig": {"temperature": 0.2, "maxOutputTokens": 512},
+        "safetySettings": [
+            {"category": "HARM_CATEGORY_HARASSMENT",        "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_HATE_SPEECH",       "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_CIVIC_INTEGRITY",   "threshold": "BLOCK_NONE"},
+        ],
+    }
+
+    try:
+        r = requests.post(url, headers=headers, json=payload, timeout=30)
+    except Exception as e:
+        return f"AI call failed: {e}"
+
+    if r.status_code != 200:
+        try:
+            err = r.json()
+        except Exception:
+            err = {"raw": r.text}
+        return f"AI error {r.status_code}: {err}"
+
+    data = r.json()
+    pf = data.get("promptFeedback") or {}
+    if pf.get("blockReason"):
+        return f"Blocked by safety: {pf.get('blockReason')}"
+
+    text = ""
+    cands = data.get("candidates") or []
+    if cands:
+        parts = (cands[0].get("content") or {}).get("parts") or []
+        text = "\n".join(p.get("text", "") for p in parts if isinstance(p, dict) and p.get("text")).strip()
 
     if not text:
-        return "I cannot be certain from the available references."
+        return "I couldn't generate an answer from the provided references."
 
-    # Hard guard: remove any accidental bracketed refs or a References section
-    # Remove lines starting with 'References' (any case)
     text = re.sub(r'(?im)^\s*references\s*:?.*$', "", text)
-    # Remove bracketed chunks like [file.pdf#123] or [1], but keep normal brackets in prose
     text = re.sub(r'\[[^\]\n]{1,120}\]', "", text)
-    # Collapse extra spaces/newlines after removals
-    text = re.sub(r'[ \t]+', ' ', text).strip()
-    text = re.sub(r'\n{3,}', '\n\n', text)
+    text = re.sub(r'[ \t]+', " ", text).strip()
+    text = re.sub(r'\n{3,}', "\n\n", text)
 
-    return text or "I cannot be certain from the available references."
+    return text
 
 
 

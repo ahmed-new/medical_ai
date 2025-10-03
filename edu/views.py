@@ -89,6 +89,11 @@ class StudentLessons(APIView):
         qs = Lesson.objects.filter(subject__module__semester__year=year)
         if subject_id:
             qs = qs.filter(subject_id=subject_id, subject__module__semester__year=year)
+            
+        part_type = request.query_params.get("part_type")
+        if part_type in ("theoretical", "practical"):
+            qs = qs.filter(part_type=part_type)
+
         qs = qs.order_by("order","id")
         return Response(LessonLiteSerializer(qs, many=True).data, status=200)
 
@@ -165,6 +170,9 @@ class StudentQuestions(APIView):
         module_id     = request.query_params.get("module_id")
         source_type   = request.query_params.get("source_type")     # new
         question_type = request.query_params.get("question_type")   # new
+        part_type = request.query_params.get("part_type")
+
+
 
         qs = Question.objects.all()
 
@@ -183,6 +191,9 @@ class StudentQuestions(APIView):
             qs = qs.filter(subject_id=subject_id)
         elif module_id:
             qs = qs.filter(module_id=module_id)
+            
+        if part_type in ("theoretical", "practical"):
+            qs = qs.filter(part_type=part_type)
 
         # allowed sources حسب الباقة
         allowed = list(sources_allowed(request.user))

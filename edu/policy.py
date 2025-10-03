@@ -10,6 +10,10 @@ PLAN_POLICIES = {
     "advanced": {"ai_daily_limit": 100, "sources": {"qbank", "exam_review", "tbl", "flipped", "old_exam"}},
 }
 
+
+
+
+
 def get_policy(user: User):
     plan = (user.plan or "none").lower()
     return PLAN_POLICIES.get(plan, PLAN_POLICIES["none"])

@@ -217,7 +217,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 # === Environment / RAG settings ===
-GOOGLE_API_KEY     = config("GOOGLE_API_KEY", default="")
+GOOGLE_API_KEY= config("GOOGLE_API_KEY", default="AIzaSyC0ZNNgnaokxprH5jBnxwdTUZjWS-1iegw")
 FAISS_INDEX_FILE   = config("FAISS_INDEX_FILE", default=os.path.join(BASE_DIR, "faiss_index.index"))
 GEMINI_EMBED_MODEL = config("GEMINI_EMBED_MODEL", default="text-embedding-004")   # بُعد 768
-GEMINI_GEN_MODEL   = config("GEMINI_GEN_MODEL", default="gemini-1.5-flash")
+GEMINI_GEN_MODEL   = config("GEMINI_GEN_MODEL", default="gemini-2.5-flash-lite")

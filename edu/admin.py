@@ -49,8 +49,8 @@ class LessonAdminForm(forms.ModelForm):
 @admin.register(Lesson)
 class LessonAdmin(admin.ModelAdmin):
     form = LessonAdminForm
-    list_display  = ("title", "subject", "order", "id")
-    list_filter   = ("subject__module__semester__year", "subject__module", "subject")
+    list_display  = ("title", "subject", "part_type", "order", "id")
+    list_filter   = ("subject__module__semester__year", "subject__module", "subject", "part_type")
     list_editable = ("order",)
     search_fields = ("title", "content")
     ordering      = ("subject__module__semester__year__order",
@@ -82,24 +82,58 @@ class QuestionAdminForm(forms.ModelForm):
         model = Question
         fields = "__all__"
 
+from django.shortcuts import redirect , get_object_or_404
+from django.utils.html import format_html
+from django.urls import path , reverse
+
 
 @admin.register(Question)
 class QuestionAdmin(admin.ModelAdmin):
     form = QuestionAdminForm   # ← ربط الفورم هنا
-    list_display  = ("id", "text", "question_type", "source_type", "exam_kind", "year", "module", "subject", "lesson")
-    list_filter   = ("question_type", "source_type", "exam_kind", "year", "module", "subject", "lesson")
+    list_display  = ("id", "text", "question_type", "source_type", "exam_kind", "year", "module", "subject", "part_type", "lesson")
+    list_filter   = ("question_type", "source_type", "exam_kind", "year", "module", "subject", "part_type", "lesson")
     search_fields = ("text", "exam_year")
     autocomplete_fields = ("year", "module", "subject", "lesson") 
     list_select_related = ("year", "module", "subject", "lesson")
     inlines = [QuestionOptionInline]
     fieldsets = ((None, {"fields": (
-        "text", "question_type", "source_type",
-        "year", "module", "subject", "lesson",
+        "text","image", "question_type", "source_type",
+        "year", "module", "subject", "part_type", "lesson",
         "exam_kind", "exam_year", "grade",
         "answer_text", "explanation"
     )}),)
 
+    change_form_template = "admin/edu/question/change_form.html"
+    def get_urls(self):
+        urls = super().get_urls()
+        custom = [
+            path(
+                "<int:object_id>/duplicate/",
+                self.admin_site.admin_view(self.duplicate_question),
+                name="edu_question_duplicate",
+            ),
+        ]
+        return custom + urls
 
+    def duplicate_question(self, request, object_id):
+        q = get_object_or_404(Question, pk=object_id)
+        original_opts = list(q.options.all())
+
+        # انسخ السؤال كما هو (من غير ما نغير أي حقل)
+        q.pk = None
+        q.id = None
+        q.text = q.text  # سيبه زي ما هو؛ العميل هيعدل اللي عايزه
+        q.save()
+
+        # انسخ الاختيارات
+        for opt in original_opts:
+            opt.pk = None
+            opt.id = None
+            opt.question = q
+            opt.save()
+
+        # ودّيه على صفحة تعديل النسخة الجديدة
+        return redirect(reverse("admin:edu_question_change", args=[q.id]))
 
 
 
@@ -113,6 +147,11 @@ class QuestionAdmin(admin.ModelAdmin):
 
 # ---- FlashCard Admin ----
 class FlashCardAdminForm(forms.ModelForm):
+    question = forms.CharField(
+        widget=CKEditorUploadingWidget(config_name="default"))
+    answer = forms.CharField(
+        widget=CKEditorUploadingWidget(config_name="default"))
+        
     class Meta:
         model = FlashCard
         fields = "__all__"

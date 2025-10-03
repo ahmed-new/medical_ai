@@ -14,9 +14,6 @@ urlpatterns = [
 
 
 
-
-
-
     # JWT:
     path("auth/login/", login_with_device, name="token_obtain_pair_device"),
     path("auth/refresh/", TokenRefreshView.as_view(), name="token_refresh"),

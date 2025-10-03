@@ -29,7 +29,7 @@ class LessonSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Lesson
-        fields = ["id", "title", "content", "order", "subject", "pdf_url"]
+        fields = ["id", "title", "content", "order", "subject", "part_type", "pdf_url"]
 
     def get_pdf_url(self, obj):
         return obj.pdf.url if obj.pdf else None
@@ -40,9 +40,10 @@ class LessonSerializer(serializers.ModelSerializer):
 class QuestionLiteSerializer(serializers.ModelSerializer):
     has_options = serializers.SerializerMethodField()
 
+
     class Meta:
         model = Question
-        fields = ["id", "question_type", "source_type", "text", "has_options"]
+        fields = ["id", "question_type", "source_type", "part_type", "text", "has_options"]
 
     def get_has_options(self, obj):
         return obj.options.exists()
@@ -54,10 +55,12 @@ class QuestionOptionSerializer(serializers.ModelSerializer):
 
 class QuestionDetailSerializer(serializers.ModelSerializer):
     options = serializers.SerializerMethodField()
+    image = serializers.ImageField(read_only=True)
+
 
     class Meta:
         model = Question
-        fields = ["id", "question_type", "source_type", "text", "options"]
+        fields = ["id", "question_type", "source_type", "text", "image", "options"]
 
     def get_options(self, obj):
         if obj.question_type == "mcq":

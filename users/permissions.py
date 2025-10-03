@@ -29,3 +29,19 @@ class SingleDeviceOnly(IsAuthenticated):
             return False
 
         return dev == active_dev
+
+
+
+# class SingleDeviceOnly(IsAuthenticated):
+#     message=" you are not allowed to accesess this acount from that device"
+
+#     def has_permission(self, request, view):
+#         ok = super().has_perrmssion(request, view)
+#         if not ok:
+#             return False
+        
+#         user= request.user
+#         if getattr(user , "is_superuser" ,False):
+#             return True
+        
+#         dev = getattr(request.header.get'')

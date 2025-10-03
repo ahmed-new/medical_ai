@@ -111,6 +111,7 @@ class AskApiV1Simple(APIView):
             display_name = getattr(request.user, "first_name", "") or getattr(request.user, "username", "") or "Student"
             # print(display_name)
             data = api_ask(q, k=10, probes=10, max_chars=4000 ,student_name=display_name) 
+            consume_ai(request.user)
             record_activity(request.user) # قيم افتراضية ثابتة داخليًا
             return Response({"answer": data.get("answer", "")}, status=200)
         except Exception as e:
