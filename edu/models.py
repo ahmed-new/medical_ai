@@ -75,6 +75,36 @@ class Subject(models.Model):
 
 
 
+
+
+class Chapter(models.Model):
+    subject = models.ForeignKey("Subject", on_delete=models.CASCADE, related_name="chapters", db_index=True)
+    title   = models.CharField(max_length=255)
+    order   = models.PositiveIntegerField(default=1, db_index=True)
+
+    class Meta:
+        ordering = ("subject_id", "order", "id")
+        constraints = [
+            models.UniqueConstraint(fields=["subject", "order"], name="uq_chapter_subject_order"),
+        ]
+
+    def __str__(self):
+        return f"{self.subject} · {self.title}"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 class PartType(models.TextChoices):
         THEORETICAL = "theoretical", "Theoretical"
         PRACTICAL   = "practical",  "Practical"
@@ -82,6 +112,7 @@ class PartType(models.TextChoices):
 
 class Lesson(models.Model):
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name="lessons")
+    chapter = models.ForeignKey("Chapter", on_delete=models.SET_NULL, null=True, blank=True, related_name="lessons", db_index=True)
     part_type = models.CharField(
         max_length=20, choices=PartType.choices, default=PartType.THEORETICAL, db_index=True
      )
@@ -215,8 +246,8 @@ class Question(models.Model):
     class SourceType(models.TextChoices):
         QBANK = "qbank", "Q Bank"
         EXAM_REVIEW = "exam_review", "Exam Review"
-        TBL = "tbl", "TBL"
-        FLIPPED = "flipped", "Flipped"
+        # TBL = "tbl", "TBL"
+        # FLIPPED = "flipped", "Flipped"
         OLD_EXAM = "old_exam", "Old Exam"
 
     class ExamKind(models.TextChoices):
@@ -264,6 +295,9 @@ class Question(models.Model):
         help_text="Use when the question is linked to a Lesson (QBank or TBL/Flipped)."
     )
 
+    is_tbl = models.BooleanField(default=False)
+    is_flipped = models.BooleanField(default=False)
+    
     # Basic data
     text = models.TextField(help_text="The main text of the question as shown to the student.")
     image = models.ImageField(

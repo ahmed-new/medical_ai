@@ -1,5 +1,5 @@
-from django.contrib import admin
-from .models import Year, Semester, Module, Subject, Lesson,Question, QuestionOption,FlashCard
+from django.contrib import admin , messages
+from .models import Year, Semester, Module, Subject,Chapter, Lesson,Question, QuestionOption,FlashCard
 from django import forms
 from ckeditor.widgets import CKEditorWidget
 from ckeditor_uploader.widgets import CKEditorUploadingWidget
@@ -39,6 +39,18 @@ class SubjectAdmin(admin.ModelAdmin):
     search_fields = ("name",)
     ordering      = ("module__semester__year__order", "module__semester__order", "module__order", "order", "id")
     autocomplete_fields = ("module",)
+    
+ 
+ 
+@admin.register(Chapter)
+class ChapterAdmin(admin.ModelAdmin):
+    list_display  = ("id", "title", "subject", "order")
+    list_filter   = ("subject",)
+    search_fields = ("title", "subject__name")
+    autocomplete_fields = ("subject",)
+    ordering = ("subject", "order", "id")   
+    
+    
 
 class LessonAdminForm(forms.ModelForm):
     content = forms.CharField(widget=CKEditorUploadingWidget(config_name="default"), required=False)
@@ -49,15 +61,15 @@ class LessonAdminForm(forms.ModelForm):
 @admin.register(Lesson)
 class LessonAdmin(admin.ModelAdmin):
     form = LessonAdminForm
-    list_display  = ("title", "subject", "part_type", "order", "id")
-    list_filter   = ("subject__module__semester__year", "subject__module", "subject", "part_type")
+    list_display  = ("title", "subject", "chapter", "part_type", "order", "id")
+    list_filter   = ("subject__module__semester__year", "subject__module", "subject", "chapter", "part_type")
     list_editable = ("order",)
-    search_fields = ("title", "content")
+    search_fields = ("title", "content","chapter__title")
     ordering      = ("subject__module__semester__year__order",
                      "subject__module__semester__order",
                      "subject__module__order",
                      "subject__order", "order", "id")
-    autocomplete_fields = ("subject",)
+    autocomplete_fields = ("subject","chapter")
 
     @admin.display(description="Has PDF")
     def pdf_exists(self, obj):
@@ -85,23 +97,90 @@ class QuestionAdminForm(forms.ModelForm):
 from django.shortcuts import redirect , get_object_or_404
 from django.utils.html import format_html
 from django.urls import path , reverse
+from django.db import transaction
+
+
+
+def duplicate_to_exam_review(modeladmin, request, queryset):
+    """
+    Admin action: ينسخ كل الأسئلة المحددة كنسخ جديدة
+    مع ضبط source_type='exam_review' ونسخ الاختيارات.
+    """
+    if not queryset.exists():
+        messages.warning(request, "No question Was Selected")
+        return
+
+    created_total = 0
+    with transaction.atomic():
+        for original in queryset.select_related(
+            "year", "module", "subject", "lesson"
+        ).prefetch_related("options"):
+            # اعمل نسخة من السؤال (بدون PK)
+            new_q = Question(
+                year=original.year,
+                module=original.module,
+                subject=original.subject,
+                lesson=original.lesson,
+                # لو عندك part_type مثلاً:
+                part_type=getattr(original, "part_type", None),
+
+                text=original.text,
+                question_type=original.question_type,
+                source_type=Question.SourceType.EXAM_REVIEW,
+                is_tbl=original.is_tbl,              # نحافظ على الفلاجز
+                is_flipped=original.is_flipped,      # نحافظ على الفلاجز# التحويل المطلوب
+
+                exam_kind=original.exam_kind,
+                exam_year=original.exam_year,
+                grade=original.grade,
+
+                answer_text=original.answer_text,
+                explanation=original.explanation,
+            )
+            new_q.save()
+
+            # انسخ الاختيارات (لو MCQ)
+            if original.question_type == Question.QuestionType.MCQ:
+                new_opts = [
+                    QuestionOption(
+                        question=new_q,
+                        text=opt.text,
+                        is_correct=opt.is_correct,
+                    )
+                    for opt in original.options.all()
+                ]
+                if new_opts:
+                    QuestionOption.objects.bulk_create(new_opts)
+
+            created_total += 1
+
+    messages.success(
+        request,
+        f"تم إنشاء {created_total} نسخة كـ Exam Review بنجاح."
+    )
+
+duplicate_to_exam_review.short_description = "Duplicate Selected As Exam Review"
+
+
+
 
 
 @admin.register(Question)
 class QuestionAdmin(admin.ModelAdmin):
     form = QuestionAdminForm   # ← ربط الفورم هنا
-    list_display  = ("id", "text", "question_type", "source_type", "exam_kind", "year", "module", "subject", "part_type", "lesson")
-    list_filter   = ("question_type", "source_type", "exam_kind", "year", "module", "subject", "part_type", "lesson")
+    list_display  = ("id", "text", "question_type", "source_type", "exam_kind", "year", "module", "subject", "part_type", "lesson", "is_tbl", "is_flipped")
+    list_filter   = ("question_type", "source_type", "exam_kind", "year", "module", "subject", "part_type", "lesson", "is_tbl", "is_flipped")
     search_fields = ("text", "exam_year")
     autocomplete_fields = ("year", "module", "subject", "lesson") 
     list_select_related = ("year", "module", "subject", "lesson")
     inlines = [QuestionOptionInline]
     fieldsets = ((None, {"fields": (
         "text","image", "question_type", "source_type",
-        "year", "module", "subject", "part_type", "lesson",
+        "year", "module", "subject", "part_type", "lesson","is_tbl", "is_flipped", 
         "exam_kind", "exam_year", "grade",
         "answer_text", "explanation"
     )}),)
+    actions = [duplicate_to_exam_review]
 
     change_form_template = "admin/edu/question/change_form.html"
     def get_urls(self):

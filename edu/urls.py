@@ -5,7 +5,7 @@ from .views import (
     StudentSubjects, StudentLessons, LessonDetail,StudentQuestions, StudentQuestionDetail,
     FlashCardListCreate , FlashCardDetail,FavoriteLessonList, FavoriteLessonAdd, FavoriteLessonRemove, 
     FavoriteLessonIDs ,FlashcardCountView,LessonProgressCountView ,LessonMarkDoneView,
-    PlannerTaskListCreate,PlannerToday,PlannerMarkDone,PlannerMarkUndone,PlannerDelete,StreakMessageView,LessonProgressIDs
+    PlannerTaskListCreate,PlannerToday,PlannerMarkDone,PlannerMarkUndone,PlannerDelete,StreakMessageView,LessonProgressIDs,StudentChapters
 )
 
 # urlpatterns = [
@@ -46,6 +46,7 @@ urlpatterns = [
     path("api/v1/edu/semesters/", StudentSemesters.as_view(), name="edu_semesters"),
     path("api/v1/edu/modules/", StudentModules.as_view(), name="edu_modules"),
     path("api/v1/edu/subjects/", StudentSubjects.as_view(), name="edu_subjects"),
+    path("api/v1/edu/chapters/", StudentChapters.as_view(), name="edu_chapters"),
     path("api/v1/edu/lessons/", StudentLessons.as_view(), name="edu_lessons"),
     path("api/v1/edu/lessons/<int:pk>/", LessonDetail.as_view(), name="edu_lesson_detail"),
     path("api/v1/edu/questions/", StudentQuestions.as_view(), name="edu_questions"),

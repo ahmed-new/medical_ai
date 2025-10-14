@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.db.models import Q
 from .policy import can_view_questions, sources_allowed ,can_view_lesson_content ,flashcard_visibility_q 
-from .models import Year, Semester, Module, Subject, Lesson ,Question ,FlashCard,FavoriteLesson ,LessonProgress,PlannerTask
+from .models import Year, Semester, Module, Subject, Chapter, Lesson ,Question ,FlashCard,FavoriteLesson ,LessonProgress,PlannerTask
 from .serializers import (
     YearSerializer, SemesterSerializer, ModuleSerializer,
     SubjectSerializer, LessonSerializer ,QuestionLiteSerializer ,QuestionDetailSerializer,LessonLiteSerializer,
@@ -28,6 +28,20 @@ def _get_user_year(request):
         return Year.objects.get(code=code)
     except Year.DoesNotExist:
         return None
+
+
+# helpers صغنونة لتحويل سترينج لـ Boolean
+def _to_bool_param(v: str | None):
+    if v is None:
+        return None
+    v = v.strip().lower()
+    if v in ("1", "true", "yes", "y"):
+        return True
+    if v in ("0", "false", "no", "n"):
+        return False
+    return None  # قيمة غير مفهومة => نتجاهلها
+
+
 
 class YearMe(APIView):
     permission_classes = [IsAuthenticated, SingleDeviceOnly]
@@ -74,6 +88,35 @@ class StudentSubjects(APIView):
         qs = qs.order_by("order","id")
         return Response(SubjectSerializer(qs, many=True).data, status=200)
 
+
+
+class StudentChapters(APIView):
+    permission_classes = [IsAuthenticated, SingleDeviceOnly]
+    def get(self, request):
+        year = _get_user_year(request)
+        if not year:
+            return Response([], status=200)
+        subject_id = request.query_params.get("subject_id")
+        if not subject_id:
+            return Response({"detail": "subject_id is required"}, status=400)
+        qs = Chapter.objects.filter(
+            subject_id=subject_id,
+            subject__module__semester__year=year
+        ).order_by("order", "id")
+        from .serializers import ChapterSerializer
+        return Response(ChapterSerializer(qs, many=True).data, status=200)
+
+
+
+
+
+
+
+
+
+
+
+
 class StudentLessons(APIView):
     """
     قائمة الدروس لمادة معيّنة (subject_id) أو لكل مواد سنة الطالب.
@@ -86,15 +129,21 @@ class StudentLessons(APIView):
             return Response([], status=200)
 
         subject_id = request.query_params.get("subject_id")
+        chapter_id = request.query_params.get("chapter_id")   # NEW
         qs = Lesson.objects.filter(subject__module__semester__year=year)
+        
+        
         if subject_id:
             qs = qs.filter(subject_id=subject_id, subject__module__semester__year=year)
+         # NEW: فلترة بالشابتر (اختيارية)
+        if chapter_id:
+            qs = qs.filter(chapter_id=chapter_id, subject__module__semester__year=year)
             
         part_type = request.query_params.get("part_type")
         if part_type in ("theoretical", "practical"):
             qs = qs.filter(part_type=part_type)
 
-        qs = qs.order_by("order","id")
+        qs = qs.select_related("subject", "chapter").order_by("order","id")
         return Response(LessonLiteSerializer(qs, many=True).data, status=200)
 
 
@@ -107,7 +156,10 @@ class LessonDetail(APIView):
         if not year:
             return Response({"detail": "Lesson not found"}, status=404)
         try:
-            obj = Lesson.objects.get(pk=pk, subject__module__semester__year=year)
+            obj = (Lesson.objects
+       .select_related("subject", "chapter")
+       .get(pk=pk, subject__module__semester__year=year))
+            
         except Lesson.DoesNotExist:
             return Response({"detail": "Lesson not found"}, status=404)
 
@@ -142,23 +194,11 @@ class LessonDetail(APIView):
 
 
 class StudentQuestions(APIView):
-    """
-    GET /api/v1/edu/questions/?lesson_id=&subject_id=&module_id=&source_type=&question_type=&limit=&offset=
-    - يُرجع أسئلة الطالب وفق سنّته وبحسب الباقة:
-        * basic:     qbank فقط
-        * premium:   qbank + exam_review
-        * advanced:  الكل
-    - Pagination بسيطة عبر limit/offset.
-    """
     permission_classes = [IsAuthenticated, SingleDeviceOnly]
 
     def get(self, request):
-        # صلاحية عرض الأسئلة حسب الباقة والاشتراك
         if not can_view_questions(request.user):
-            return Response(
-                {"detail": "Questions are not available for your current plan/subscription."},
-                status=403
-            )
+            return Response({"detail": "Questions are not available for your current plan/subscription."}, status=403)
 
         year = _get_user_year(request)
         if not year:
@@ -168,11 +208,16 @@ class StudentQuestions(APIView):
         lesson_id     = request.query_params.get("lesson_id")
         subject_id    = request.query_params.get("subject_id")
         module_id     = request.query_params.get("module_id")
-        source_type   = request.query_params.get("source_type")     # new
-        question_type = request.query_params.get("question_type")   # new
-        part_type = request.query_params.get("part_type")
+        chapter_id    = request.query_params.get("chapter_id")   # NEW
+        source_type   = request.query_params.get("source_type")
+        question_type = request.query_params.get("question_type")
+        part_type     = request.query_params.get("part_type")
 
-
+        # NEW
+        tbl_param     = request.query_params.get("tbl")
+        flipped_param = request.query_params.get("flipped")
+        tbl_val       = _to_bool_param(tbl_param)
+        flipped_val   = _to_bool_param(flipped_param)
 
         qs = Question.objects.all()
 
@@ -191,23 +236,32 @@ class StudentQuestions(APIView):
             qs = qs.filter(subject_id=subject_id)
         elif module_id:
             qs = qs.filter(module_id=module_id)
+         # NEW: فلترة بالشابتر (لو السؤال مربوط بدرس داخل شابتر)
+        if chapter_id:
+            qs = qs.filter(lesson__chapter_id=chapter_id)
             
         if part_type in ("theoretical", "practical"):
             qs = qs.filter(part_type=part_type)
 
-        # allowed sources حسب الباقة
+        # حسب الباقة
         allowed = list(sources_allowed(request.user))
         qs = qs.filter(source_type__in=allowed)
 
-        # فلترة إضافية (لو متاحة ومطابقة للباقات)
+        # فلترة إضافية
         if source_type and source_type in allowed:
             qs = qs.filter(source_type=source_type)
         if question_type in ["mcq", "written"]:
             qs = qs.filter(question_type=question_type)
 
+        # NEW: فلترة TBL/Flipped
+        if tbl_val is not None:
+            qs = qs.filter(is_tbl=tbl_val)
+        if flipped_val is not None:
+            qs = qs.filter(is_flipped=flipped_val)
+
         qs = qs.order_by("id")
 
-        # Pagination بسيطة
+        # Pagination
         try:
             limit = max(1, min(int(request.query_params.get("limit", 20)), 100))
         except Exception:
@@ -221,12 +275,7 @@ class StudentQuestions(APIView):
         items = qs[offset:offset+limit]
         data = QuestionLiteSerializer(items, many=True).data
 
-        return Response({
-            "total": total,
-            "limit": limit,
-            "offset": offset,
-            "items": data,
-        }, status=200)
+        return Response({"total": total, "limit": limit, "offset": offset, "items": data}, status=200)
 
 
 

@@ -72,13 +72,24 @@ CKEDITOR_UPLOAD_PATH = "uploads/"
 
 CKEDITOR_CONFIGS = {
     "default": {
-        "toolbar": "full",
+        "toolbar": [
+            ['Source','Maximize','-','Undo','Redo'],
+            ['Bold','Italic','Underline','Strike'],
+            ['NumberedList','BulletedList','Blockquote'],
+            ['Link','Unlink'],
+            ['Image','Table','HorizontalRule','SpecialChar'],
+            ['Styles','Format','Font','FontSize','TextColor','BGColor'],
+            ['JustifyLeft','JustifyCenter','JustifyRight','JustifyBlock'],
+            ['YouTube']  # زرار اليوتيوب
+        ],
         "height": 450,
         "width": "100%",
-        # السماح بخصائص إضافية على الصور (للريسبونسيف/ستايلات):
-        "extraAllowedContent": "img[!src,alt,width,height]{*}(*);figure;figcaption",
+        "extraPlugins": "ytembed",   # البلجن الإضافي
+        "allowedContent": True,
     }
 }
+
+
 
 STORAGES = {
     "default": {"BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage"},
@@ -205,6 +216,7 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_DIRS = [BASE_DIR / "static"]
 
 # # === Media (محليًا) ===
 # MEDIA_URL = "/media/"
