@@ -72,20 +72,29 @@ CKEDITOR_UPLOAD_PATH = "uploads/"
 
 CKEDITOR_CONFIGS = {
     "default": {
-        "toolbar": [
-            ['Source','Maximize','-','Undo','Redo'],
-            ['Bold','Italic','Underline','Strike'],
-            ['NumberedList','BulletedList','Blockquote'],
-            ['Link','Unlink'],
-            ['Image','Table','HorizontalRule','SpecialChar'],
-            ['Styles','Format','Font','FontSize','TextColor','BGColor'],
-            ['JustifyLeft','JustifyCenter','JustifyRight','JustifyBlock'],
-            ['YouTube']  # زرار اليوتيوب
-        ],
         "height": 450,
         "width": "100%",
-        "extraPlugins": "ytembed",   # البلجن الإضافي
         "allowedContent": True,
+        "extraPlugins": "ytembed",      # عشان زر YouTube يظهر
+        "toolbar": "Full",              # استخدم التولبار الكامل
+        "toolbar_Full": [
+            ['Source','Maximize','-','Preview','Print','Templates'],
+            ['Cut','Copy','Paste','PasteText','PasteFromWord','-','Undo','Redo'],
+            ['Find','Replace','SelectAll','Scayt'],
+            ['Form','Checkbox','Radio','TextField','Textarea','Select','Button','ImageButton','HiddenField'],
+            '/',
+            ['Bold','Italic','Underline','Strike','Subscript','Superscript','-','RemoveFormat'],
+            ['NumberedList','BulletedList','-','Outdent','Indent','Blockquote','CreateDiv'],
+            ['JustifyLeft','JustifyCenter','JustifyRight','JustifyBlock'],
+            ['BidiLtr','BidiRtl'],
+            ['Link','Unlink','Anchor'],
+            ['Image','Flash','Table','HorizontalRule','Smiley','SpecialChar','PageBreak','Iframe'],
+            ['YouTube'],  # ← زر اليوتيوب من البلجن
+            '/',
+            ['Styles','Format','Font','FontSize'],
+            ['TextColor','BGColor'],
+            ['ShowBlocks']
+        ],
     }
 }
 
