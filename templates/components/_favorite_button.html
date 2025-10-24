@@ -1,0 +1,22 @@
+{# expects: lesson_id, is_fav #}
+{% if is_fav %}
+<button
+  class="btn btn-warning btn-sm"
+  title="Remove from favorites"
+  hx-post="{% url 'favorite_lesson_toggle' lesson_id %}"
+  hx-target="#fav-{{ lesson_id }}"
+  hx-swap="outerHTML"
+>
+  ★ Favorite
+</button>
+{% else %}
+<button
+  class="btn btn-outline-secondary btn-sm"
+  title="Add to favorites"
+  hx-post="{% url 'favorite_lesson_toggle' lesson_id %}"
+  hx-target="#fav-{{ lesson_id }}"
+  hx-swap="outerHTML"
+>
+  ☆ Add to favorites
+</button>
+{% endif %}

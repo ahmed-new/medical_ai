@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Create account{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-md-6 col-lg-5">
+    <div class="card-soft p-4">
+      <h1 class="h5 mb-3">Create account</h1>
+
+      {% if messages %}
+        {% for m in messages %}<div class="alert alert-{{ m.tags|default:'danger' }}">{{ m }}</div>{% endfor %}
+      {% endif %}
+
+      <form method="post">
+        {% csrf_token %}
+
+        <div class="mb-2">
+          <label class="form-label">Username</label>
+          <input name="username" class="form-control" value="{{ form.username|default:'' }}" required>
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label">Email</label>
+          <input name="email" type="email" class="form-control" value="{{ form.email|default:'' }}" required>
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label">Phone (optional)</label>
+          <input name="phone_number" class="form-control" value="{{ form.phone_number|default:'' }}">
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label">Study year <span class="text-danger">*</span></label>
+          <select name="study_year" class="form-select" required>
+            <option value="" disabled {% if not form.study_year %}selected{% endif %}>Select your year</option>
+            <option value="y1" {% if form.study_year == "y1" %}selected{% endif %}>Year 1</option>
+            <option value="y2" {% if form.study_year == "y2" %}selected{% endif %}>Year 2</option>
+            <option value="y3" {% if form.study_year == "y3" %}selected{% endif %}>Year 3</option>
+            <option value="y4" {% if form.study_year == "y4" %}selected{% endif %}>Year 4</option>
+            <option value="y5" {% if form.study_year == "y5" %}selected{% endif %}>Year 5</option>
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Password</label>
+          <input name="password" type="password" class="form-control" required minlength="6">
+        </div>
+
+        <button class="btn btn-primary w-100">Create account</button>
+      </form>
+
+      <div class="text-center mt-3">
+        <a href="/login/" class="text-muted small">Already have an account? Sign in</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

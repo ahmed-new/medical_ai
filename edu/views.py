@@ -9,7 +9,7 @@ from .models import Year, Semester, Module, Subject, Chapter, Lesson ,Question ,
 from .serializers import (
     YearSerializer, SemesterSerializer, ModuleSerializer,
     SubjectSerializer, LessonSerializer ,QuestionLiteSerializer ,QuestionDetailSerializer,LessonLiteSerializer,
-    FlashCardSerializer,FlashCardCreateUpdateSerializer ,FavoriteLessonSerializer,PlannerTaskSerializer
+    FlashCardSerializer,FlashCardCreateUpdateSerializer ,FavoriteLessonSerializer,PlannerTaskSerializer,QuestionAttemptCreateSerializer
 )
 from users.permissions import SingleDeviceOnly
 from datetime import date
@@ -204,6 +204,7 @@ class StudentQuestions(APIView):
         if not year:
             return Response({"detail": "No study year set for user."}, status=400)
 
+        facets_flag = request.query_params.get("facets") in ("1","true","True")
         # params
         lesson_id     = request.query_params.get("lesson_id")
         subject_id    = request.query_params.get("subject_id")
@@ -212,10 +213,13 @@ class StudentQuestions(APIView):
         source_type   = request.query_params.get("source_type")
         question_type = request.query_params.get("question_type")
         part_type     = request.query_params.get("part_type")
+        
 
         # NEW
         tbl_param     = request.query_params.get("tbl")
         flipped_param = request.query_params.get("flipped")
+        exam_kind = request.query_params.get("exam_kind")   # e.g. final | midterm | ...
+        exam_year = request.query_params.get("exam_year")   # e.g. 2024
         tbl_val       = _to_bool_param(tbl_param)
         flipped_val   = _to_bool_param(flipped_param)
 
@@ -259,6 +263,12 @@ class StudentQuestions(APIView):
         if flipped_val is not None:
             qs = qs.filter(is_flipped=flipped_val)
 
+        if exam_kind:
+            qs = qs.filter(exam_kind=exam_kind)
+        if exam_year and exam_year.isdigit():
+            qs = qs.filter(exam_year=int(exam_year))
+            
+            
         qs = qs.order_by("id")
 
         # Pagination
@@ -275,7 +285,32 @@ class StudentQuestions(APIView):
         items = qs[offset:offset+limit]
         data = QuestionLiteSerializer(items, many=True).data
 
-        return Response({"total": total, "limit": limit, "offset": offset, "items": data}, status=200)
+        resp = {"total": total, "limit": limit, "offset": offset, "items": data}
+        
+        if facets_flag:
+            base_qs = qs.order_by()  # clear ordering for distinct performance/safety
+
+            def distinct_list(qs_, field, drop_empty=False, as_int=False):
+                q = qs_.values_list(field, flat=True).distinct()
+                vals = list(q)
+                if drop_empty:
+                    vals = [v for v in vals if v not in (None, "", "null")]
+                if as_int:
+                    vals = [int(v) for v in vals if v is not None]
+                return vals
+
+            resp["facets"] = {
+                "question_types": distinct_list(base_qs, "question_type", drop_empty=True),
+                "source_types":   distinct_list(base_qs, "source_type",   drop_empty=True),
+                "part_types":     distinct_list(base_qs, "part_type",     drop_empty=True),
+                "exam_kinds":     distinct_list(base_qs.exclude(exam_kind__isnull=True).exclude(exam_kind=""), "exam_kind"),
+                "exam_years":     sorted(distinct_list(base_qs.exclude(exam_year__isnull=True), "exam_year", as_int=True), reverse=True),
+                "has_tbl":        base_qs.filter(is_tbl=True).exists(),
+                "has_flipped":    base_qs.filter(is_flipped=True).exists(),
+            }
+
+
+        return Response(resp, status=200)
 
 
 
@@ -758,3 +793,96 @@ class StreakMessageView(APIView):
             msg = f"Nice! Day {n} in a row 🎉"
 
         return Response({"current_streak": n, "message": msg}, status=200)
+    
+    
+    
+    
+    
+    
+    
+    
+
+
+from django.utils import timezone
+from django.db import models  # علشان models.Sum في aggregate
+
+from .models import StudySession ,QuestionAttempt
+from .serializers import StudySessionSerializer
+# edu/views.py
+class StudySessionListCreate(APIView):
+    permission_classes = [IsAuthenticated, SingleDeviceOnly]
+
+    def get(self, request):
+        period = request.query_params.get("period", "today")  # today|week|month|all
+        now = timezone.now()
+        qs = StudySession.objects.filter(user=request.user)
+        if period == "today":
+            qs = qs.filter(created_at__date=now.date())
+        elif period == "week":
+            start = now - timezone.timedelta(days=7)
+            qs = qs.filter(created_at__gte=start)
+        elif period == "month":
+            start = now - timezone.timedelta(days=30)
+            qs = qs.filter(created_at__gte=start)
+        total_min = qs.aggregate(models.Sum("minutes"))["minutes__sum"] or 0
+        return Response({"total_minutes": total_min, "count": qs.count()}, status=200)
+
+    def post(self, request):
+        ser = StudySessionSerializer(data=request.data)
+        if not ser.is_valid():
+            return Response(ser.errors, status=400)
+        obj = ser.save(user=request.user)
+        return Response({"id": obj.id}, status=201)
+
+
+
+
+
+
+
+class QuestionAttemptCreate(APIView):
+    permission_classes = [IsAuthenticated, SingleDeviceOnly]
+    def post(self, request, pk: int):
+        # تأكد السؤال متاح لنفس سنة المستخدم وخطته
+        year = _get_user_year(request)
+        try:
+            q = (Question.objects
+                 .filter(
+                    Q(lesson__subject__module__semester__year=year) |
+                    Q(subject__module__semester__year=year) |
+                    Q(module__semester__year=year) |
+                    Q(year__code=year.code),
+                    source_type__in=list(sources_allowed(request.user))
+                 ).get(pk=pk))
+        except Question.DoesNotExist:
+            return Response({"detail":"Question not found"}, status=404)
+
+        ser = QuestionAttemptCreateSerializer(data=request.data)
+        if not ser.is_valid():
+            return Response(ser.errors, status=400)
+        QuestionAttempt.objects.create(
+            user=request.user, question=q, is_correct=ser.validated_data["is_correct"]
+        )
+        return Response({"detail":"recorded"}, status=201)
+
+
+class QuestionAttemptsStats(APIView):
+    permission_classes = [IsAuthenticated, SingleDeviceOnly]
+    def get(self, request):
+        period = request.query_params.get("period","all")  # all|today|week|month
+        subject_id = request.query_params.get("subject_id")
+        now = timezone.now()
+        qs = QuestionAttempt.objects.filter(user=request.user)
+        if period == "today":
+            qs = qs.filter(created_at__date=now.date())
+        elif period == "week":
+            qs = qs.filter(created_at__gte=now - timezone.timedelta(days=7))
+        elif period == "month":
+            qs = qs.filter(created_at__gte=now - timezone.timedelta(days=30))
+        if subject_id:
+            qs = qs.filter(question__subject_id=subject_id)
+
+        total = qs.count()
+        correct = qs.filter(is_correct=True).count()
+        acc = (correct / total * 100.0) if total else 0.0
+        return Response({"total": total, "correct": correct, "accuracy": round(acc, 1)}, status=200)

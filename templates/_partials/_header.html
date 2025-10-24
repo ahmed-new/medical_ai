@@ -1,0 +1,9 @@
+<a href="/" class="app-brand">Axonelix</a>
+<div class="d-flex align-items-center gap-3">
+  {% if request.session.access %}
+    <a href="/logout/" class="text-decoration-none text-muted">Logout</a>
+  {% else %}
+    <a href="/login/" class="text-decoration-none text-muted">Login</a>
+    <a href="/register/" class="text-decoration-none text-muted">Register</a>
+  {% endif %}
+</div>

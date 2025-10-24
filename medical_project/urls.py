@@ -9,6 +9,8 @@ urlpatterns = [
     path("api/", include("users.urls")),
     path('', include("rag_ai.urls")),
     path("", include("edu.urls")),
+    
+    path("", include("web.urls")),
 
     path("ckeditor/", include("ckeditor_uploader.urls")),
 ]

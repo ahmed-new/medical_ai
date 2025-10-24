@@ -45,13 +45,16 @@ from rest_framework import status
 from django.contrib.auth import authenticate
 from django.utils import timezone
 
+# users/views.py
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def login_with_device(request):
     """
-    Body: { "username": "", "password": "", "device_id": "<UUID>" }
-    - يربط active_device_id للمستخدم غير الـ superuser في أول تسجيل على جهاز.
-    - superuser مستثنى: لا حاجة لـ device_id، ولا ربط.
+    Body: { "username": "", "password": "", "device_id": "<UUID or any string>" }
+    سياسة:
+    - يُسمح بتسجيل جهازين (device_id_1, device_id_2).
+    - active_device_id يُحدَّث عند كل تسجيل دخول إلى الجهاز الحالي.
+    - أي طلبات من جهاز غير نشِط تُرفض بواسطة SingleDeviceOnly.
     """
     username = (request.data.get("username") or "").strip()
     password = (request.data.get("password") or "").strip()
@@ -64,23 +67,37 @@ def login_with_device(request):
     if not user:
         return Response({"detail": "Invalid credentials"}, status=401)
 
-    # ✅ superuser: لا نقيّد بجهاز، ولا نطلب device_id
+    # superuser مستثنى من القيد
     if user.is_superuser:
         refresh = RefreshToken.for_user(user)
         return Response({"refresh": str(refresh), "access": str(refresh.access_token)}, status=200)
 
-    # المستخدم العادي: device_id مطلوب
     if not device_id:
         return Response({"detail": "device_id is required"}, status=400)
 
-    # إن كان مربوطًا بجهاز آخر → ارفض
-    if user.active_device_id and user.active_device_id != device_id:
-        return Response({"detail": "Account is already active on another device"}, status=409)
+    # حالياً مسجلين؟
+    slot1 = (user.device_id_1 or "").strip()
+    slot2 = (user.device_id_2 or "").strip()
 
-    # اربط الجهاز أول مرة
-    if not user.active_device_id:
+    if device_id == slot1 or device_id == slot2:
+        # الجهاز معروف — فعّله
         user.active_device_id = device_id
         user.save(update_fields=["active_device_id"])
+    else:
+        # جهاز جديد
+        if not slot1:
+            user.device_id_1 = device_id
+            user.active_device_id = device_id
+            user.save(update_fields=["device_id_1", "active_device_id"])
+        elif not slot2:
+            user.device_id_2 = device_id
+            user.active_device_id = device_id
+            user.save(update_fields=["device_id_2", "active_device_id"])
+        else:
+            # الاتنين مليانين: ارفض أو اعمل سياسة استبدال لاحقاً
+            return Response({"detail": "Two devices already registered"}, status=409)
 
+    # اصدار التوكنات
     refresh = RefreshToken.for_user(user)
     return Response({"refresh": str(refresh), "access": str(refresh.access_token)}, status=200)
+

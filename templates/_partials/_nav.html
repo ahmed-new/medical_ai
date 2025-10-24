@@ -1,0 +1,27 @@
+<ul class="nav app-nav py-1">
+  {% with p=request.path %}
+    <li class="nav-item">
+      <a class="nav-link {% if p == '/' %}active{% endif %}" href="/">Home</a>
+    </li>
+
+    <li class="nav-item">
+      <a class="nav-link {% if p|slice:':10' == '/materials' %}active{% endif %}" href="/materials/">Materials</a>
+    </li>
+
+    <li class="nav-item">
+      <a class="nav-link {% if p|slice:':10' == '/questions' %}active{% endif %}" href="/questions/">Questions</a>
+    </li>
+
+    <li class="nav-item">
+      <a class="nav-link {% if p|slice:':11' == '/flashcards' %}active{% endif %}" href="/flashcards/">Flashcards</a>
+    </li>
+
+    <li class="nav-item">
+      <a class="nav-link {% if p|slice:':8' == '/planner' %}active{% endif %}" href="/planner/">Planner</a>
+    </li>
+
+    <li class="nav-item">
+      <a class="nav-link {% if p|slice:':8' == '/profile' %}active{% endif %}" href="/profile/">Profile</a>
+    </li>
+  {% endwith %}
+</ul>

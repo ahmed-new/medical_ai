@@ -1,10 +1,12 @@
 # users/permissions.py
 from rest_framework.permissions import IsAuthenticated
 
+# users/permissions.py
 class SingleDeviceOnly(IsAuthenticated):
     """
-    يسمح بطلبات من جهاز واحد فقط (بناءً على X-Device-Id)،
-    ويستثني superuser من القيد.
+    يسمح بطلبات من جهاز واحد نشِط (active_device_id).
+    يُسمح بتخزين جهازين، لكن النشِط فقط هو المسموح له حالياً.
+    superuser مستثنى.
     """
     message = "This account is active on another device or X-Device-Id is missing."
 
@@ -14,21 +16,16 @@ class SingleDeviceOnly(IsAuthenticated):
             return False
 
         user = request.user
-        # ✅ superuser مستثنى تمامًا
         if getattr(user, "is_superuser", False):
             return True
 
         dev = (request.headers.get("X-Device-Id") or "").strip()
         if not dev:
-            # لازم العنوان
             return False
 
         active_dev = (getattr(user, "active_device_id", None) or "").strip()
-        if not active_dev:
-            # لو لسه مش مربوط (حالة شاذة)، ارفض وخلّي الربط يتم عند تسجيل الدخول
-            return False
+        return bool(active_dev) and (dev == active_dev)
 
-        return dev == active_dev
 
 
 

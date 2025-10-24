@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Home · Axonelix{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <div class="page-title mb-1">Welcome, {{ me.username|default:"Student" }} 👋</div>
+    <div class="small text-muted">Study overview</div>
+  </div>
+  <div><span class="badge bg-primary text-uppercase">{{ me.plan|default:"none" }}</span></div>
+</div>
+
+<div class="row g-3">
+  <!-- Streak -->
+  <div class="col-12 col-md-6 col-lg-3">
+    <div class="card-soft p-3">
+      <div class="text-muted small">Streak</div>
+      <div class="fw-bold fs-5">{{ streak.current_streak|default:0 }}</div>
+      <div class="small text-muted">{{ streak.message|default:"—" }}</div>
+    </div>
+  </div>
+
+  <!-- Solved Qs -->
+  <div class="col-12 col-md-6 col-lg-3">
+    <div class="card-soft p-3">
+      <div class="text-muted small">Solved questions</div>
+      <div class="fw-bold fs-5">{{ solved_qs|default:0 }}</div>
+      <div class="small text-muted">Accuracy: {{ accuracy|default:0 }}%</div>
+    </div>
+  </div>
+
+  <!-- Study time -->
+  <div class="col-12 col-md-6 col-lg-3">
+    <div class="card-soft p-3">
+      <div class="text-muted small">Study time</div>
+      <div class="fw-bold fs-5">{{ study_today_min|default:0 }} min <span class="text-muted small">today</span></div>
+      <div class="small text-muted">{{ study_month_min|default:0 }} min this month</div>
+    </div>
+  </div>
+
+  <!-- Favorites -->
+  <div class="col-12 col-md-6 col-lg-3">
+    <div class="card-soft p-3">
+      <div class="text-muted small">Favorites</div>
+      <div class="fw-bold fs-5">{{ fav_lessons_total|default:0 }}</div>
+      <div class="small text-muted">Lessons</div>
+    </div>
+  </div>
+</div>
+
+<!-- Trees / Start now -->
+<div class="card-soft p-3 my-3 d-flex align-items-center justify-content-between">
+  <div class="d-flex align-items-center gap-3">
+    <div class="display-6 fw-bold">{{ trees_today|default:0 }}</div>
+    <div>
+      <div class="fw-bold">Trees</div>
+      <div class="text-muted small">25 min = 1 tree</div>
+    </div>
+  </div>
+  <a class="btn btn-primary" href="/planner/">Start now</a>
+</div>
+
+<!-- CTA -->
+<div class="card-soft p-3 mb-3 d-flex align-items-center justify-content-between">
+  <div class="text-muted">What do you want to learn today?</div>
+  <a class="btn btn-outline-primary btn-sm" href="/materials/">Get started</a>
+</div>
+
+<div class="row g-3">
+  <div class="col-12 col-md-6">
+    <div class="card-soft p-4 d-flex flex-column gap-2">
+      <div class="fw-bold">Learn new subject!</div>
+      <a class="btn btn-primary btn-sm mt-2" href="/materials/">Get started</a>
+    </div>
+  </div>
+  <div class="col-12 col-md-6">
+    <div class="card-soft p-4 d-flex flex-column gap-2">
+      <div class="fw-bold">Open Question Bank</div>
+      <a class="btn btn-primary btn-sm mt-2" href="/questions/">Go</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

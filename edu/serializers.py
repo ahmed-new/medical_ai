@@ -1,6 +1,6 @@
 # edu/serializers.py
 from rest_framework import serializers
-from .models import Year, Semester, Module, Subject, Chapter,Lesson ,Question, QuestionOption,FlashCard,FavoriteLesson ,PlannerTask
+from .models import Year, Semester, Module, Subject, Chapter,Lesson ,Question, QuestionOption,FlashCard,FavoriteLesson ,PlannerTask,StudySession
 
 class YearSerializer(serializers.ModelSerializer):
     class Meta:
@@ -99,7 +99,7 @@ class LessonLiteSerializer(serializers.ModelSerializer):
     chapter = serializers.SerializerMethodField()
     class Meta:
         model = Lesson
-        fields = ["id", "title", "order", "subject"]
+        fields = ["id", "title", "order", "part_type", "chapter", "subject"]
 
     def get_chapter(self, obj):
         if obj.chapter_id:
@@ -148,3 +148,17 @@ class PlannerTaskSerializer(serializers.ModelSerializer):
         model = PlannerTask
         fields = ["id", "title", "notes", "due_date", "is_done", "user"]
         read_only_fields = ["user"]
+        
+        
+        
+        
+
+class StudySessionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = StudySession
+        fields = ["id","started_at","minutes","source","created_at"]
+
+
+
+class QuestionAttemptCreateSerializer(serializers.Serializer):
+    is_correct = serializers.BooleanField(required=True)

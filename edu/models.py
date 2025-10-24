@@ -120,7 +120,7 @@ class Lesson(models.Model):
     content = models.TextField(blank=True) 
     pdf = models.FileField(
         upload_to="lesson_pdfs/%Y/%m/%d/",
-        storage=RawMediaCloudinaryStorage(),                # يرفع على raw/
+        # storage=RawMediaCloudinaryStorage(),                # يرفع على raw/
         validators=[FileExtensionValidator(["pdf"])],
         blank=True, null=True,
     ) 
@@ -302,7 +302,7 @@ class Question(models.Model):
     text = models.TextField(help_text="The main text of the question as shown to the student.")
     image = models.ImageField(
     upload_to="question_images/%Y/%m/%d/",
-    storage=MediaCloudinaryStorage(),
+    # storage=MediaCloudinaryStorage(),
     validators=[FileExtensionValidator(["jpg", "jpeg", "png"])],
     blank=True,
     null=True,
@@ -390,3 +390,39 @@ class FavoriteLesson(models.Model):
 
     def __str__(self):
         return f"{self.user_id} ♥ {self.lesson_id}"
+    
+    
+    
+    
+    
+    
+
+# for web frontend
+
+# edu/models.py
+class StudySession(models.Model):
+    class Source(models.TextChoices):
+        POMODORO = "pomodoro", "Pomodoro"
+        MANUAL   = "manual",   "Manual"
+
+    user       = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="study_sessions")
+    started_at = models.DateTimeField()
+    minutes    = models.PositiveIntegerField(default=0, db_index=True)
+    source     = models.CharField(max_length=20, choices=Source.choices, default=Source.MANUAL)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["user","created_at"])]
+
+
+
+
+
+class QuestionAttempt(models.Model):
+    user      = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="question_attempts")
+    question  = models.ForeignKey(Question, on_delete=models.CASCADE, related_name="attempts")
+    is_correct= models.BooleanField(default=False)
+    created_at= models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["user","created_at"])]

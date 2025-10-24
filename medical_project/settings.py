@@ -12,7 +12,8 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 from decouple import config
-import os
+import os , json
+from google.oauth2 import service_account
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -44,19 +45,35 @@ INSTALLED_APPS = [
     'rag_ai',
     'users',
     "edu",
+    "web",
     "pgvector.django",
     'rest_framework_simplejwt',
     "cloudinary",
     "cloudinary_storage",
     "ckeditor",
     "ckeditor_uploader",
+    "storages",
 
     "whitenoise.runserver_nostatic",
 
 ]
 
-CKEDITOR_STORAGE_BACKEND = "cloudinary_storage.storage.MediaCloudinaryStorage"
+# CKEDITOR_STORAGE_BACKEND = "cloudinary_storage.storage.MediaCloudinaryStorage"
+CKEDITOR_STORAGE_BACKEND = "storages.backends.gcloud.GoogleCloudStorage"
 
+
+
+# بيانات GCS
+GS_BUCKET_NAME = config("GS_BUCKET_NAME")
+GS_DEFAULT_ACL = None
+GS_FILE_OVERWRITE = False
+GS_QUERYSTRING_AUTH = False  # لأن البكت عام
+MEDIA_URL = f"https://storage.googleapis.com/{GS_BUCKET_NAME}/"
+
+# الكريدنشلز (الصق JSON كامل في متغير بيئة GCS_CREDENTIALS_JSON)
+GS_CREDENTIALS = service_account.Credentials.from_service_account_info(
+    json.loads(config("GCS_CREDENTIALS_JSON"))
+)
 
 
 CLOUDINARY_STORAGE = {
@@ -101,7 +118,8 @@ CKEDITOR_CONFIGS = {
 
 
 STORAGES = {
-    "default": {"BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage"},
+    # "default": {"BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage"},
+    "default": {"BACKEND": "storages.backends.gcloud.GoogleCloudStorage"},
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
 }
 
@@ -242,3 +260,13 @@ GOOGLE_API_KEY= config("GOOGLE_API_KEY", default="AIzaSyC0ZNNgnaokxprH5jBnxwdTUZ
 FAISS_INDEX_FILE   = config("FAISS_INDEX_FILE", default=os.path.join(BASE_DIR, "faiss_index.index"))
 GEMINI_EMBED_MODEL = config("GEMINI_EMBED_MODEL", default="text-embedding-004")   # بُعد 768
 GEMINI_GEN_MODEL   = config("GEMINI_GEN_MODEL", default="gemini-2.5-flash-lite")
+
+
+
+
+
+
+
+
+BASE_API_URL  = config("BASE_API_URL", default="http://localhost:8000/api")
+WEB_DEVICE_ID = config("WEB_DEVICE_ID", default="")  # لو فاضي هنولّد واحد بالسيشن
