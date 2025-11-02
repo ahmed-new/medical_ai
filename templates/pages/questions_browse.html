@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Questions{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  <div class="row">
+    <!-- left -->
+    <div class="col-md-3">
+      <div class="card-soft mb-3">
+        <h5 class="mb-3">Semesters</h5>
+        <div
+          id="q-semesters"
+          hx-get="{% url 'q_nav_semesters' %}"
+          hx-trigger="load"
+          hx-target="#q-semesters"
+          hx-swap="innerHTML"
+          hx-indicator="#q-loading"
+        >
+          <p class="text-muted">Loading…</p>
+        </div>
+      </div>
+
+      <div class="card-soft">
+        <h5 class="mb-3">Modules</h5>
+        <div id="q-modules">
+          <p class="text-muted mb-0">Select semester first.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- right -->
+    <div class="col-md-9">
+      <div id="q-main-panel">
+        <div class="card-soft p-4 text-muted">
+          Select a module to browse questions.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# global spinner #}
+<div id="q-loading" class="htmx-indicator position-fixed top-0 end-0 m-3" style="z-index:9999;">
+  <div class="spinner-border text-primary spinner-border-sm" role="status"></div>
+</div>
+{% endblock %}

@@ -1,0 +1,22 @@
+<div class="card-soft p-3">
+  <h5 class="mb-3">{{ chapter_name|default:"Lessons" }}</h5>
+
+  {% if lessons %}
+    <div class="list-group">
+      {% for ls in lessons %}
+        <button
+          class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+          hx-get="{% url 'q_panel_questions' %}?lesson_id={{ ls.id }}&subject_id={{ subject_id }}&source={{ source }}&kind={{ kind }}&exam_year={{ exam_year }}&part_type={{ part_type }}"
+          hx-target="#q-main-panel"
+          hx-swap="innerHTML"
+          hx-indicator="#q-loading"
+        >
+          <span>{{ ls.title }}</span>
+          <span class="badge bg-light text-muted">questions</span>
+        </button>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="text-muted mb-0">No lessons.</p>
+  {% endif %}
+</div>

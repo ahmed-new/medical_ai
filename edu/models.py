@@ -52,6 +52,11 @@ class Module(models.Model):
     semester = models.ForeignKey(Semester, on_delete=models.CASCADE, related_name="modules")
     name = models.CharField(max_length=150)               # مثال: "Cardiovascular Module"
     order = models.PositiveIntegerField(default=1, db_index=True)
+    
+    is_ready = models.BooleanField(
+    default=False, db_index=True,
+    help_text="Only ready modules are visible to students."
+    )
 
     class Meta:
         unique_together = ("semester", "name")

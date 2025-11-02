@@ -1,0 +1,183 @@
+{# components/questions/_questions_panel.html #}
+{# expects: items, limit, offset, next_offset, has_more, qtype, subject_id?, source?, kind?, exam_year?, part_type?, lesson_id? #}
+
+<style>
+  .nav-pills .nav-link { cursor: pointer; }
+</style>
+
+<ul class="nav nav-pills mb-2">
+  <li class="nav-item">
+    <a class="nav-link {% if qtype == 'mcq' %}active{% endif %}"
+       hx-get="{% url 'web_questions_list' %}?qtype=mcq&limit={{ limit }}{% if subject_id %}&subject_id={{ subject_id }}{% endif %}{% if lesson_id %}&lesson_id={{ lesson_id }}{% endif %}{% if source %}&source={{ source }}{% endif %}{% if kind %}&kind={{ kind }}{% endif %}{% if exam_year %}&exam_year={{ exam_year }}{% endif %}{% if part_type %}&part_type={{ part_type }}{% endif %}"
+       hx-target="#q-panel-body" hx-swap="innerHTML">
+      MCQ
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if qtype == 'written' %}active{% endif %}"
+       hx-get="{% url 'web_questions_list' %}?qtype=written&limit={{ limit }}{% if subject_id %}&subject_id={{ subject_id }}{% endif %}{% if lesson_id %}&lesson_id={{ lesson_id }}{% endif %}{% if source %}&source={{ source }}{% endif %}{% if kind %}&kind={{ kind }}{% endif %}{% if exam_year %}&exam_year={{ exam_year }}{% endif %}{% if part_type %}&part_type={{ part_type }}{% endif %}"
+       hx-target="#q-panel-body" hx-swap="innerHTML">
+      Written
+    </a>
+  </li>
+</ul>
+
+<div class="card-soft p-3">
+  <form id="q-filter"
+        class="row g-2 align-items-end"
+        hx-get="{% url 'web_questions_list' %}"
+        hx-target="#q-panel-body"
+        hx-swap="innerHTML">
+    <div class="col-auto">
+      <label class="form-label small">Number of questions</label>
+      <input type="number" min="1" max="100" name="limit" value="{{ limit }}"
+             class="form-control form-control-sm" style="width:120px;">
+    </div>
+    <input type="hidden" name="offset" value="0">
+    <input type="hidden" name="qtype" value="{{ qtype }}">
+
+    {# نحافظ على كل الفلاتر #}
+    {% if subject_id %}<input type="hidden" name="subject_id" value="{{ subject_id }}">{% endif %}
+    {% if lesson_id %}<input type="hidden" name="lesson_id" value="{{ lesson_id }}">{% endif %}
+    {% if source %}<input type="hidden" name="source" value="{{ source }}">{% endif %}
+    {% if kind %}<input type="hidden" name="kind" value="{{ kind }}">{% endif %}
+    {% if exam_year %}<input type="hidden" name="exam_year" value="{{ exam_year }}">{% endif %}
+    {% if part_type %}<input type="hidden" name="part_type" value="{{ part_type }}">{% endif %}
+
+    <div class="col-auto">
+      <button class="btn btn-primary btn-sm" type="submit">
+        <span class="spinner-border spinner-border-sm me-1 htmx-indicator" role="status"></span>
+        Load
+      </button>
+    </div>
+
+    <div class="col-auto ms-auto">
+      <button type="button" id="solve-all" class="btn btn-outline-primary btn-sm">
+        <span class="spinner-border spinner-border-sm me-1 d-none" id="solve-all-spin" role="status"></span>
+        Solve all
+      </button>
+
+      <button type="button" id="reveal-all" class="btn btn-outline-danger btn-sm d-none">
+        <span class="spinner-border spinner-border-sm me-1 d-none" id="reveal-all-spin" role="status"></span>
+        Show all answers
+      </button>
+    </div>
+  </form>
+</div>
+
+<div id="q-list" class="mt-3">
+  {% include "components/_questions_list_items.html" %}
+</div>
+
+<div id="q-load-more" class="mt-3 text-center">
+  {% if has_more %}
+    {% include "components/questions/_questions_load_more.html" %}
+  {% else %}
+    <span class="text-muted small">No more questions.</span>
+  {% endif %}
+</div>
+
+{# نفس السكريبت بتاع الماتريال بالظبط #}
+<script>
+  (function(){
+    const container = document.getElementById('q-list');
+
+    const qs = (root, sel) => Array.from(root.querySelectorAll(sel));
+    const hasAnyRevealable = () => {
+      return !!container.querySelector('.q-card .q-reveal');
+    };
+    const setRevealAllVisible = (visible) => {
+      const btn = document.getElementById('reveal-all');
+      if (!btn) return;
+      btn.classList.toggle('d-none', !visible);
+    };
+
+    setRevealAllVisible(hasAnyRevealable());
+
+    document.body.addEventListener('htmx:afterSwap', (e) => {
+      if (!container) return;
+      if (container.contains(e.target)) {
+        setRevealAllVisible(hasAnyRevealable());
+      }
+    });
+
+    const solveBtn = document.getElementById('solve-all');
+    const solveSpin = document.getElementById('solve-all-spin');
+
+    if (solveBtn && container) {
+      solveBtn.addEventListener('click', () => {
+        const cards = qs(container, '.q-card');
+        const targets = cards.filter(c => {
+          const d = c.querySelector('.q-detail');
+          return d && !d.hasChildNodes();
+        });
+
+        if (!targets.length) return;
+
+        solveBtn.disabled = true;
+        solveSpin.classList.remove('d-none');
+
+        let remaining = targets.length;
+
+        const onSwap = (ev) => {
+          const tgt = ev.target;
+          if (tgt && tgt.classList && tgt.classList.contains('q-detail')) {
+            remaining--;
+            if (remaining <= 0) {
+              container.removeEventListener('htmx:afterSwap', onSwap);
+              solveBtn.disabled = false;
+              solveSpin.classList.add('d-none');
+              setRevealAllVisible(hasAnyRevealable());
+            }
+          }
+        };
+        container.addEventListener('htmx:afterSwap', onSwap);
+
+        const loadingHTML =
+          '<div class="text-muted small"><span class="spinner-border spinner-border-sm me-1"></span> Loading…</div>';
+
+        targets.forEach((card, i) => {
+          const detail = card.querySelector('.q-detail');
+          const solveOneBtn = card.querySelector('.q-solve');
+          if (!detail || !solveOneBtn) { remaining--; return; }
+          detail.innerHTML = loadingHTML;
+          setTimeout(() => { htmx.trigger(solveOneBtn, 'click'); }, i * 60);
+        });
+      });
+    }
+
+    const revealBtnAll = document.getElementById('reveal-all');
+    const revealSpinAll = document.getElementById('reveal-all-spin');
+
+    if (revealBtnAll && container) {
+      revealBtnAll.addEventListener('click', () => {
+        const targets = qs(container, '.q-card').filter(c => c.querySelector('.q-reveal'));
+        if (!targets.length) return;
+
+        revealBtnAll.disabled = true;
+        revealSpinAll.classList.remove('d-none');
+
+        let remaining = targets.length;
+        const onSwapReveal = (ev) => {
+          const tgt = ev.target;
+          if (tgt && tgt.classList && tgt.classList.contains('q-detail')) {
+            remaining--;
+            if (remaining <= 0) {
+              container.removeEventListener('htmx:afterSwap', onSwapReveal);
+              revealBtnAll.disabled = false;
+              revealSpinAll.classList.add('d-none');
+              setRevealAllVisible(hasAnyRevealable());
+            }
+          }
+        };
+        container.addEventListener('htmx:afterSwap', onSwapReveal);
+
+        targets.forEach((card, i) => {
+          const revealBtn = card.querySelector('.q-reveal');
+          if (!revealBtn) { remaining--; return; }
+          setTimeout(() => { htmx.trigger(revealBtn, 'click'); }, i * 60);
+        });
+      });
+    }
+  })();
+</script>

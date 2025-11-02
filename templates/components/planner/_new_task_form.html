@@ -1,0 +1,15 @@
+<div class="card-soft p-3">
+  <div class="fw-semibold mb-2">New task</div>
+  <form
+    hx-post="{% url 'web_planner_create' %}"
+    hx-target="#planner-tasks"
+    hx-swap="innerHTML"
+    class="vstack gap-2">
+    <input type="text" name="title" class="form-control form-control-sm" placeholder="Task title" required>
+    <input type="date" name="due_date" class="form-control form-control-sm" value="{% now 'Y-m-d' %}">
+    <button class="btn btn-primary btn-sm" type="submit">
+      <span class="spinner-border spinner-border-sm me-1 htmx-indicator" role="status"></span>
+      Add
+    </button>
+  </form>
+</div>

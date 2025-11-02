@@ -1,0 +1,28 @@
+<div class="card-soft p-3">
+  <h5 class="mb-3">Exam review</h5>
+  <div class="list-group">
+    <button
+      class="list-group-item list-group-item-action"
+      hx-get="{% url 'q_panel_years' %}?module_id={{ module_id }}&source=exam_review&kind=final"
+      hx-target="#q-main-panel"
+      hx-swap="innerHTML"
+      hx-indicator="#q-loading"
+    >Finals</button>
+
+    <button
+      class="list-group-item list-group-item-action"
+      hx-get="{% url 'q_panel_years' %}?module_id={{ module_id }}&source=exam_review&kind=midterm"
+      hx-target="#q-main-panel"
+      hx-swap="innerHTML"
+      hx-indicator="#q-loading"
+    >MidTerm</button>
+
+    <button
+      class="list-group-item list-group-item-action"
+      hx-get="{% url 'q_panel_years' %}?module_id={{ module_id }}&source=exam_review&kind=tpl"
+      hx-target="#q-main-panel"
+      hx-swap="innerHTML"
+      hx-indicator="#q-loading"
+    >TPL & Flipped</button>
+  </div>
+</div>

@@ -1,0 +1,46 @@
+<div class="mb-3 d-flex gap-2">
+  <button
+    class="btn {% if qtype == 'mcq' %}btn-primary{% else %}btn-outline-primary{% endif %} btn-sm"
+    hx-get="{% url 'web_questions_list' %}?lesson_id={{ lesson_id }}&subject_id={{ subject_id }}&source={{ source }}&kind={{ kind }}&exam_year={{ exam_year }}&part_type={{ part_type }}&limit={{ limit }}&qtype=mcq"
+    hx-target="#q-questions-box"
+    hx-swap="innerHTML"
+    hx-indicator="#q-loading"
+  >MCQ</button>
+
+  <button
+    class="btn {% if qtype == 'written' %}btn-primary{% else %}btn-outline-primary{% endif %} btn-sm"
+    hx-get="{% url 'web_questions_list' %}?lesson_id={{ lesson_id }}&subject_id={{ subject_id }}&source={{ source }}&kind={{ kind }}&exam_year={{ exam_year }}&part_type={{ part_type }}&limit={{ limit }}&qtype=written"
+    hx-target="#q-questions-box"
+    hx-swap="innerHTML"
+    hx-indicator="#q-loading"
+  >Written</button>
+</div>
+
+{% if items %}
+  <ul class="list-group mb-3">
+    {% for q in items %}
+      <li class="list-group-item">
+        <small class="text-muted d-block mb-1">
+          #{{ q.id }} · {{ q.source_type }}{% if q.part_type %} · {{ q.part_type }}{% endif %}
+        </small>
+        <p class="mb-1">{{ q.text }}</p>
+        {% if q.is_tbl %}<span class="badge bg-info me-1">TBL</span>{% endif %}
+        {% if q.is_flipped %}<span class="badge bg-warning text-dark me-1">Flipped</span>{% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p class="text-muted mb-3">No questions.</p>
+{% endif %}
+
+{% if has_more %}
+  <button
+    class="btn btn-outline-secondary btn-sm"
+    hx-get="{% url 'web_questions_list' %}?lesson_id={{ lesson_id }}&subject_id={{ subject_id }}&source={{ source }}&kind={{ kind }}&exam_year={{ exam_year }}&part_type={{ part_type }}&limit={{ limit }}&offset={{ next_offset }}&qtype={{ qtype }}"
+    hx-target="#q-questions-box"
+    hx-swap="innerHTML"
+    hx-indicator="#q-loading"
+  >Load more</button>
+{% else %}
+  <p class="text-muted mb-0">No more questions.</p>
+{% endif %}

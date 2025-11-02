@@ -1,14 +1,15 @@
 <!doctype html>
-<html lang="ar" dir="rtl">
+<html lang="ar" dir="ltr">
 <head>
   <meta charset="utf-8">
   <title>{% block title %}منصّة الدراسة{% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
   <style>
-    :root {
-      --brand:#3a6ff8; --muted:#6c757d; --bg:#f7f8fa; --card:#fff;
-    }
+    :root { --brand:#3a6ff8; --muted:#6c757d; --bg:#f7f8fa; --card:#fff; }
     body{ background:var(--bg); }
     .app-header{ background:#fff; border-bottom:1px solid #eee; }
     .app-brand{ color:var(--brand); font-weight:700; text-decoration:none; }
@@ -16,7 +17,24 @@
     .app-nav .nav-link.active{ color:var(--brand); }
     .page-title{ font-size:1.1rem; font-weight:700; }
     .card-soft{ background:var(--card); border:1px solid #eee; border-radius:14px; }
+
+    /* Floating Study button (bigger) */
+    .fab-pomo {
+      position: fixed; right: 16px; bottom: 16px; z-index: 1040;
+      padding: 14px 22px; font-size: 1.05rem; font-weight: 700;
+      box-shadow: 0 10px 20px rgba(0,0,0,.12);
+    }
+    /* HUD */
+    .pomo-hud { position: fixed; right: 16px; bottom: 88px; z-index: 1040; min-width: 240px; }
+    .pomo-time { font-size: 1.4rem; letter-spacing: 1px; }
+
+
+
+  .htmx-indicator { display: none; }
+  .htmx-request .htmx-indicator,
+  .htmx-request.htmx-indicator { display: inline-block; }
   </style>
+
   {% block extra_head %}{% endblock %}
 </head>
 <body>
@@ -42,11 +60,9 @@
   </div>
 </footer>
 
-<script src="https://unpkg.com/htmx.org@1.9.12"></script>
 {% block extra_js %}{% endblock %}
 
-
-{# --- Global Pomodoro Modal (always available) --- #}
+<!-- Study Modal -->
 <div class="modal fade" id="pomodoroModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content border-0">
@@ -56,25 +72,26 @@
       </div>
 
       <div class="modal-body">
-        <div class="mb-2 small text-muted">Each 25 min builds a tree 🌳</div>
+        <div class="mb-2 small text-muted">🌳 Each 25 min builds a tree</div>
 
-        <div class="input-group mb-3" style="max-width: 260px;">
+        <div class="input-group mb-3" style="max-width: 300px;">
           <span class="input-group-text">⏱</span>
           <select id="pomodoro-duration" class="form-select">
-            <option value="25" selected>25 min</option>
-            <option value="50">50 min</option>
-            <option value="75">75 min</option>
-            <option value="90">90 min</option>
+            <option value="20">min 20</option>
+            <option value="25" selected>min 25</option>
+            <option value="30">min 30</option>
+            <option value="40">min 40</option>
           </select>
+          <span class="input-group-text">🕑</span>
         </div>
 
-        <div id="pomodoro-ticker" class="display-6 fw-semibold text-center my-3" style="letter-spacing:2px;">
+        <div id="pomodoro-ticker" class="display-4 fw-semibold text-center my-3" style="letter-spacing:2px;">
           25:00
         </div>
 
         <div class="d-flex gap-2">
-          <button id="pomodoro-start" class="btn btn-primary flex-fill">Start Now</button>
           <button id="pomodoro-stop"  class="btn btn-outline-secondary flex-fill" disabled>Stop</button>
+          <button id="pomodoro-start" class="btn btn-primary flex-fill">Start Now</button>
         </div>
 
         <div id="pomodoro-msg" class="alert alert-secondary mt-3 d-none">—</div>
@@ -83,6 +100,7 @@
   </div>
 </div>
 
+<!-- Congrats -->
 <div class="modal fade" id="pomodoroDone" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content border-0 text-center">
@@ -99,129 +117,295 @@
   </div>
 </div>
 
-<style>
-  .fab-pomo { position: fixed; right: 16px; bottom: 16px; z-index: 1040; }
-</style>
-<button class="btn btn-primary rounded-pill fab-pomo" data-bs-toggle="modal" data-bs-target="#pomodoroModal">⏱ Study</button>
+<!-- Floating Study button (big) -->
+<button id="fabStudy" class="btn btn-primary rounded-pill fab-pomo" data-bs-toggle="modal" data-bs-target="#pomodoroModal">
+  ⏱ Study 25 mins
+</button>
 
+<!-- HUD -->
+<div id="pomoHUD" class="pomo-hud d-none">
+  <div class="card shadow-sm border-0">
+    <div class="card-body d-flex align-items-center justify-content-between gap-2">
+      <div class="pomo-time fw-bold" id="pomoHUDTime">25:00</div>
+      <div class="btn-group btn-group-sm">
+        <button id="pomoHUDPause"  class="btn btn-outline-secondary">Pause</button>
+        <button id="pomoHUDResume" class="btn btn-outline-secondary d-none">Resume</button>
+        <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#pomodoroModal">⋯</button>
+        <button id="pomoHUDStop"   class="btn btn-outline-danger">Stop</button>
+      </div>
+    </div>
+  </div>
+</div>
 
+<!-- JS: Bootstrap Bundle + HTMX -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://unpkg.com/htmx.org@1.9.12"></script>
 <script>
-  // CSRF for fetch/htmx (مرة واحدة لكل الموقع)
-  function getCookie(name) {
-    const m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
-    return m ? m.pop() : '';
+  // ====== CSRF once ======
+  function getCookie(name){const m=document.cookie.match('(^|;)\\s*'+name+'\\s*=\\s*([^;]+)');return m?m.pop():''}
+  document.body.addEventListener('htmx:configRequest', e => { e.detail.headers['X-CSRFToken']=getCookie('csrftoken'); });
+
+  // ====== Elements (modal + HUD) ======
+  const durSel   = document.getElementById('pomodoro-duration');
+  const ticker   = document.getElementById('pomodoro-ticker');
+  const btnStart = document.getElementById('pomodoro-start');
+  const btnStop  = document.getElementById('pomodoro-stop');
+  const msg      = document.getElementById('pomodoro-msg');
+  const modalEl  = document.getElementById('pomodoroModal');
+  const fab      = document.getElementById('fabStudy');
+
+  const hud      = document.getElementById('pomoHUD');
+  const hudTime  = document.getElementById('pomoHUDTime');
+  const hudPause = document.getElementById('pomoHUDPause');
+  const hudResume= document.getElementById('pomoHUDResume');
+  const hudStop  = document.getElementById('pomoHUDStop');
+
+  // ====== Persistent state in localStorage ======
+  const STORAGE_KEY = 'pomo_state_v1';
+
+  // state schema:
+  // {
+  //   running: bool, paused: bool,
+  //   total: seconds, started_ms: epoch_ms,
+  //   paused_accum: seconds,     // مجموع التوقفات السابقة
+  //   paused_start_ms: epoch_ms|null  // بداية التوقف الحالي لو paused=true
+  // }
+  let state = {
+    running:false, paused:false,
+    total: 25*60,
+    started_ms: null,
+    paused_accum: 0,
+    paused_start_ms: null,
+    timer_id: null,
+  };
+
+  const fmt = s => { s=Math.max(0,Math.floor(s)); const m=Math.floor(s/60), ss=s%60; return `${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`; };
+  const setFabLabel = mins => { if (fab) fab.textContent = `⏱ Study ${mins} mins`; };
+
+  function saveState(){
+    const toSave = {
+      running: state.running,
+      paused: state.paused,
+      total: state.total,
+      started_ms: state.started_ms,
+      paused_accum: state.paused_accum,
+      paused_start_ms: state.paused_start_ms
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
   }
-  document.body.addEventListener('htmx:configRequest', (e) => {
-    e.detail.headers['X-CSRFToken'] = getCookie('csrftoken');
+
+  function loadState(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const s = JSON.parse(raw);
+      // validate
+      if (typeof s.total !== 'number' || !s.started_ms) return;
+      state.running = !!s.running;
+      state.paused  = !!s.paused;
+      state.total   = s.total;
+      state.started_ms = s.started_ms;
+      state.paused_accum = s.paused_accum || 0;
+      state.paused_start_ms = s.paused_start_ms || null;
+    }catch(_){}
+  }
+
+  function nowMs(){ return Date.now(); }
+
+  // remaining seconds based on wall clock
+  function remainingSeconds(){
+    if (!state.started_ms) return state.total;
+    const now = nowMs();
+    const pausedExtra = state.paused && state.paused_start_ms ? Math.max(0, Math.floor((now - state.paused_start_ms)/1000)) : 0;
+    const pausedTotal = state.paused_accum + pausedExtra;
+    const elapsed = Math.max(0, Math.floor((now - state.started_ms)/1000) - pausedTotal);
+    return state.total - elapsed;
+  }
+
+  function showHUD(){
+    hud.classList.remove('d-none');
+    hudPause.classList.toggle('d-none', state.paused || !state.running);
+    hudResume.classList.toggle('d-none', !state.paused);
+  }
+  function hideHUD(){ hud.classList.add('d-none'); }
+
+  function render(){
+    const left = remainingSeconds();
+    if (ticker)  ticker.textContent  = fmt(left);
+    if (hudTime) hudTime.textContent = fmt(left);
+  }
+
+  function startInterval(){
+    if (state.timer_id) return;
+    state.timer_id = setInterval(()=>{
+      render();
+      const left = remainingSeconds();
+      if (left <= 0){
+        clearInterval(state.timer_id); state.timer_id=null;
+        // complete
+        const minutes = Math.round(state.total/60);
+        const startedISO = new Date(state.started_ms).toISOString();
+        resetRunning(false); // don't log elapsed again here
+        postSession(minutes, startedISO, true);
+      }
+    }, 1000);
+  }
+  function stopInterval(){ if (state.timer_id){ clearInterval(state.timer_id); state.timer_id=null; } }
+
+  function resetRunning(keepUI=false){
+    stopInterval();
+    state.running=false; state.paused=false;
+    state.started_ms=null; state.paused_accum=0; state.paused_start_ms=null;
+    saveState();
+    hideHUD();
+    if (!keepUI){
+      // لا تغيّر الاختيار، فقط أعِد العرض حسب المدة المختارة
+      const mins = parseInt(durSel?.value || String(Math.round(state.total/60)), 10) || 25;
+      state.total = mins*60;
+      render();
+    }
+  }
+
+  // ====== Session actions ======
+  function startSession(){
+    if (state.running) return;
+    const mins = parseInt(durSel.value || '25', 10);
+    state.total = mins*60;
+    state.started_ms = nowMs();
+    state.paused_accum = 0;
+    state.paused_start_ms = null;
+    state.running = true; state.paused = false;
+    saveState();
+    showHUD();
+    render();
+    startInterval();
+  }
+
+  function pauseSession(){
+    if (!state.running || state.paused) return;
+    state.paused = true;
+    state.paused_start_ms = nowMs();
+    saveState();
+    showHUD();
+    render();
+  }
+
+  function resumeSession(){
+    if (!state.running || !state.paused) return;
+    // أضِف مدة التوقف الحالية إلى المجمع
+    const now = nowMs();
+    if (state.paused_start_ms) {
+      state.paused_accum += Math.max(0, Math.floor((now - state.paused_start_ms)/1000));
+    }
+    state.paused = false;
+    state.paused_start_ms = null;
+    saveState();
+    showHUD();
+    render();
+  }
+
+  function stopSession(logElapsed=true){
+    if (!state.started_ms){ resetRunning(); return; }
+    // احسب المنقضي الفعلي
+    const left = remainingSeconds();
+    const elapsedMin = Math.max(0, Math.round((state.total - left)/60));
+    const startedISO = new Date(state.started_ms).toISOString();
+    resetRunning();
+    if (logElapsed && elapsedMin >= 1){
+      postSession(elapsedMin, startedISO, false);
+    }
+  }
+
+  // ====== UI bindings ======
+  function updateForSelect(){
+    const mins = parseInt(durSel.value || '25', 10);
+    setFabLabel(mins);
+    if (!state.running){
+      state.total = mins*60;
+      render();
+    }
+  }
+  if (durSel) durSel.addEventListener('change', updateForSelect);
+
+  if (btnStart) btnStart.addEventListener('click', ()=>{
+    if (!state.running) startSession();
+    if (window.bootstrap) bootstrap.Modal.getOrCreateInstance(modalEl).hide();
   });
 
-  // Pomodoro logic (global)
-  (function(){
-    const durSel = document.getElementById('pomodoro-duration');
-    const ticker = document.getElementById('pomodoro-ticker');
-    const btnStart = document.getElementById('pomodoro-start');
-    const btnStop  = document.getElementById('pomodoro-stop');
-    const msg      = document.getElementById('pomodoro-msg');
-    if (!durSel || !ticker || !btnStart || !btnStop) return; // safety
+  if (btnStop) btnStop.addEventListener('click', ()=> stopSession(true));
 
-    let interval = null, secondsLeft = 0, startedAtISO = null;
+  if (hudPause)  hudPause.addEventListener('click', pauseSession);
+  if (hudResume) hudResume.addEventListener('click', resumeSession);
+  if (hudStop)   hudStop.addEventListener('click', ()=> stopSession(true));
 
-    function format(sec){
-      const m = Math.floor(sec/60), s = sec%60;
-      return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-    }
-    function resetUI(){
-      const m = parseInt(durSel.value || '25', 10);
-      secondsLeft = m * 60;
-      ticker.textContent = format(secondsLeft);
-      btnStart.disabled = false;
-      btnStop.disabled  = true;
-      msg.classList.add('d-none'); msg.textContent = '—';
-      if (interval) clearInterval(interval); interval = null;
-      startedAtISO = null;
-    }
-    durSel.addEventListener('change', resetUI);
-
-    btnStart.addEventListener('click', () => {
-      if (interval) return;
-      btnStart.disabled = true; btnStop.disabled = false;
-      if (!secondsLeft) resetUI();
-      startedAtISO = new Date().toISOString();
-      interval = setInterval(() => {
-        secondsLeft--;
-        ticker.textContent = format(Math.max(secondsLeft,0));
-        if (secondsLeft <= 0){
-          clearInterval(interval); interval = null;
-          btnStop.disabled = true;
-          const minutes = parseInt(durSel.value || '25', 10);
-          logSession(minutes, startedAtISO, true);
-        }
-      }, 1000);
-    });
-
-    btnStop.addEventListener('click', () => {
-      if (!interval) return;
-      clearInterval(interval); interval = null;
-      btnStop.disabled = true;
-      const total = parseInt(durSel.value || '25', 10) * 60;
-      const elapsed = Math.max(0, total - secondsLeft);
-      const minutes = Math.round(elapsed / 60);
-      if (minutes >= 1) {
-        logSession(minutes, startedAtISO, false);
-      } else {
-        msg.textContent = 'Timer stopped without logging.';
-        msg.classList.remove('d-none');
-        btnStart.disabled = false;
+  if (modalEl){
+    modalEl.addEventListener('show.bs.modal', ()=>{
+      // اعرض الحالة الحالية
+      if (state.running){
+        // اضبط select على مدة الجلسة الحالية
+        const m = String(Math.round(state.total/60));
+        if (durSel && durSel.value !== m) durSel.value = m;
+        btnStart.disabled = true; btnStop.disabled = false;
+      }else{
+        btnStart.disabled = false; btnStop.disabled = true;
       }
+      render();
     });
+    modalEl.addEventListener('hidden.bs.modal', ()=>{ if (state.running) showHUD(); });
+  }
 
-    async function logSession(minutes, startedISO, showCongrats){
-      try {
-        const res = await fetch("{% url 'pomodoro_log' %}", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
-            "X-CSRFToken": getCookie("csrftoken"),
-          },
-          body: new URLSearchParams({minutes: String(minutes), started_at: startedISO}),
-        });
-        const js = await res.json();
-        if (js.ok){
-          // Update counters if present on current page
-          try {
-            const elMin = document.getElementById('study-today-min');
-            const elTrees = document.getElementById('trees-today');
-            if (elMin) {
-              const newMin = (parseInt(elMin.textContent||'0',10) + minutes);
-              elMin.textContent = String(newMin);
-              if (elTrees) elTrees.textContent = String(Math.floor(newMin / 25));
-            }
-          } catch(_) {}
+  window.addEventListener('beforeunload', saveState);
 
-          resetUI();
-          if (showCongrats && window.bootstrap) {
-            new bootstrap.Modal(document.getElementById('pomodoroDone')).show();
-          } else {
-            msg.textContent = 'Session logged.';
-            msg.classList.remove('d-none');
-            btnStart.disabled = false;
+  // ====== API call ======
+  async function postSession(minutes, startedISO, showCongrats){
+    try{
+      const res = await fetch("{% url 'pomodoro_log' %}", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+          "X-CSRFToken": getCookie("csrftoken"),
+        },
+        body: new URLSearchParams({minutes:String(minutes), started_at: startedISO}),
+      });
+      const js = await res.json();
+      if (js.ok){
+        // حدّث عدّادات الصفحة إن وجدت
+        try{
+          const elMin=document.getElementById('study-today-min');
+          const elTrees=document.getElementById('trees-today');
+          if (elMin){
+            const newMin=(parseInt(elMin.textContent||'0',10)+minutes);
+            elMin.textContent=String(newMin);
+            if (elTrees) elTrees.textContent=String(Math.floor(newMin/25));
           }
-        } else {
-          msg.textContent = 'Failed to log session.'; msg.classList.remove('d-none');
-          btnStart.disabled = false;
+        }catch(_){}
+        if (showCongrats && window.bootstrap){
+          bootstrap.Modal.getOrCreateInstance(document.getElementById('pomodoroDone')).show();
         }
-      } catch (e){
-        msg.textContent = 'Network error.'; msg.classList.remove('d-none');
-        btnStart.disabled = false;
       }
-    }
+    }catch(e){ console.warn('pomodoro_log error', e); }
+  }
 
-    // init once
-    resetUI();
-    document.getElementById('pomodoroModal').addEventListener('hidden.bs.modal', resetUI);
+  // ====== Restore & boot ======
+  (function boot(){
+    // اضبط لابل الزر (25 افتراضي)
+    setFabLabel(25);
+    // حمّل الحالة لو في جلسة قائمة
+    loadState();
+
+    // لو الجلسة قائمة، استأنف فورًا
+    if (state.running){
+      showHUD();
+      render();
+      startInterval();
+      // اضبط لابل الزر على مدة الجلسة
+      setFabLabel(Math.round(state.total/60));
+    }else{
+      // استخدم قيمة الاختيار الحالية
+      const mins = parseInt(durSel?.value || '25', 10);
+      state.total = mins*60;
+      render();
+      setFabLabel(mins);
+    }
   })();
 </script>
-
-</body>
-</html>

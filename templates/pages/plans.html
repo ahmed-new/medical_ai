@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-3" style="max-width: 900px;">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h3 class="mb-0">Plans</h3>
+      <small class="text-muted">Choose the plan that fits you</small>
+    </div>
+  </div>
+
+  <div id="plans-messages"></div>
+
+  <div class="row g-3">
+    {% for p in plans %}
+      {% with code=p.code|lower %}
+      <div class="col-md-4">
+        <div class="card-soft h-100 p-3 d-flex flex-column">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <h5 class="mb-0">{{ p.name }}</h5>
+            {% if current_plan == code %}
+              <span class="badge bg-success-subtle text-success">Current</span>
+            {% endif %}
+          </div>
+          <div class="mb-2">
+            <div class="fs-4 fw-semibold">{{ p.price_egp }} EGP</div>
+            <div class="text-muted small">for {{ p.duration_days }} days</div>
+          </div>
+
+            <ul class="text-muted small mb-3 ps-3">
+              <li>Access to questions</li>
+              <li>Materials & flashcards</li>
+              <li>AI limits based on plan</li>
+            </ul>
+
+          <div class="mt-auto">
+            {# لو الخطة الحالية Advanced → مفيش Upgrade #}
+            {% if current_plan == "advanced" %}
+              {% if current_plan == code %}
+                <button class="btn btn-success btn-sm w-100" disabled>You're on this plan</button>
+              {% else %}
+                <button class="btn btn-light btn-sm w-100" disabled>Higher plan active</button>
+              {% endif %}
+            {% else %}
+              {# لو ده هو البلان الحالية → نعطّل الزر #}
+              {% if current_plan == code %}
+                <button class="btn btn-success btn-sm w-100" disabled>You're on this plan</button>
+              {% else %}
+                <form
+                  hx-post="{% url 'web_plans_purchase' %}"
+                  hx-target="#plans-messages"
+                  hx-swap="innerHTML"
+                  class="d-flex gap-2">
+                  <input type="hidden" name="plan_code" value="{{ p.code }}">
+                  <input type="text" name="coupon" class="form-control form-control-sm" placeholder="Coupon (optional)">
+                  <button class="btn btn-primary btn-sm" type="submit">
+                    <span class="spinner-border spinner-border-sm me-1 htmx-indicator" role="status"></span>
+                    Choose
+                  </button>
+                </form>
+              {% endif %}
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% endwith %}
+    {% empty %}
+      <div class="col-12">
+        <div class="alert alert-secondary">No active plans.</div>
+      </div>
+    {% endfor %}
+  </div>
+
+  {# لو مفيش اشتراك نشط نعرض زرار Start trial تحت #}
+  {% if not is_active %}
+    <div class="mt-4">
+      <form
+        hx-post="{% url 'web_plans_start_trial' %}"
+        hx-target="#plans-messages"
+        hx-swap="innerHTML"
+        class="d-inline-block">
+        <button class="btn btn-outline-success btn-sm" type="submit">
+          <span class="spinner-border spinner-border-sm me-1 htmx-indicator" role="status"></span>
+          Start free trial
+        </button>
+      </form>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

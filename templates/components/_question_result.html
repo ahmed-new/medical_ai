@@ -1,0 +1,43 @@
+{# expects: q (dict فيه options[{id,text}]), chosen_id, correct_id, explanation, mode #}
+
+<style>
+  .opt { padding:.6rem .8rem; border-radius:.5rem; margin-bottom:.5rem; background:#f8f9fa; }
+  .opt.correct { background:#22c55e33; border:1px solid #22c55e; }
+  .opt.wrong   { background:#ef444433; border:1px solid #ef4444; }
+  .opt .mark { width:20px; display:inline-flex; justify-content:center; margin-inline-end:.35rem; }
+</style>
+
+<div class="card-soft p-3">
+  <div class="vstack">
+    {% for o in q.options %}
+      <div class="opt
+                  {% if o.id == correct_id %} correct
+                  {% elif chosen_id and o.id == chosen_id and o.id != correct_id %} wrong
+                  {% endif %}">
+        <span class="mark">
+          {% if o.id == correct_id %}
+            ✅
+          {% elif chosen_id and o.id == chosen_id %}
+            ❌
+          {% else %}
+            ○
+          {% endif %}
+        </span>
+        {{ o.text }}
+      </div>
+    {% endfor %}
+  </div>
+
+    {% if explanation %}
+    <div class="mt-3">
+        <div class="fw-semibold mb-1">Explanation:</div>
+        <div class="text-muted explanation-body">{{ explanation|safe }}</div>
+    </div>
+    {% endif %}
+
+
+  <div class="mt-3">
+    <button class="btn btn-outline-secondary btn-sm" type="button"
+            onclick="this.closest('.card-soft').remove()">Close</button>
+  </div>
+</div>

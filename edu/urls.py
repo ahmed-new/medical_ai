@@ -5,7 +5,7 @@ from .views import (
     StudentSubjects, StudentLessons, LessonDetail,StudentQuestions, StudentQuestionDetail,
     FlashCardListCreate , FlashCardDetail,FavoriteLessonList, FavoriteLessonAdd, FavoriteLessonRemove, 
     FavoriteLessonIDs ,FlashcardCountView,LessonProgressCountView ,LessonMarkDoneView,
-    PlannerTaskListCreate,PlannerToday,PlannerMarkDone,PlannerMarkUndone,PlannerDelete,StreakMessageView,LessonProgressIDs,StudentChapters,StudySessionListCreate,QuestionAttemptCreate ,QuestionAttemptsStats
+    PlannerTaskListCreate,PlannerToday,PlannerMarkDone,PlannerMarkUndone,PlannerDelete,StreakMessageView,LessonProgressIDs,StudentChapters,StudySessionListCreate,QuestionAttemptCreate ,QuestionAttemptsStats,QuestionReveal 
 )
 
 
@@ -21,7 +21,9 @@ urlpatterns = [
     path("api/v1/edu/questions/<int:pk>/", StudentQuestionDetail.as_view(), name="edu_question_detail"),
     path("api/v1/edu/flashcards/", FlashCardListCreate.as_view(), name="edu_flashcards"),
     path("api/v1/edu/flashcards/<int:pk>/", FlashCardDetail.as_view(), name="edu_flashcard_detail"),
-
+    
+    
+   
     # flashcards count
     path("api/v1/edu/flashcards/count/", FlashcardCountView.as_view(), name="edu_flashcards_count"),
 
@@ -55,6 +57,8 @@ urlpatterns = [
     
     path("api/v1/edu/questions/<int:pk>/attempt/", QuestionAttemptCreate.as_view(), name="edu_question_attempt"),
     path("api/v1/edu/questions/attempts/stats/", QuestionAttemptsStats.as_view(), name="edu_question_attempts_stats"),
+    path("api/v1/edu/questions/<int:pk>/reveal/",  QuestionReveal.as_view(),       name="edu_question_reveal"),
+
 
 
 ]

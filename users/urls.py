@@ -1,6 +1,6 @@
 # users/urls.py
 from django.urls import path
-from .views import register, me, login_with_device
+from .views import register, me, login_with_device ,PlanListView, StartFreeTrialView, PurchaseSubscriptionView,CouponValidateView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView 
 
 
@@ -11,6 +11,10 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 urlpatterns = [
     path("auth/register/", register, name="register"),
     path("auth/me/", me, name="me"),
+    path("plans/", PlanListView.as_view(), name="plans"),
+    path("subscriptions/start-trial/", StartFreeTrialView.as_view(), name="start_trial"),
+    path("subscriptions/purchase/", PurchaseSubscriptionView.as_view(), name="purchase_subscription"),
+    path("coupons/validate/", CouponValidateView.as_view(), name="coupon_validate"),
 
 
 

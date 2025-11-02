@@ -1,0 +1,27 @@
+{# t = {id, title, due_date, is_done} #}
+<div class="list-group-item d-flex align-items-center justify-content-between gap-2">
+  <div class="d-flex align-items-center gap-2">
+    <input
+      type="checkbox"
+      {% if t.is_done %}checked{% endif %}
+      hx-post="{% url 'web_planner_toggle' t.id %}"
+      hx-target="#planner-tasks"
+      hx-swap="innerHTML">
+    <div>
+      <div class="{% if t.is_done %}text-decoration-line-through text-muted{% endif %}">
+        {{ t.title }}
+      </div>
+      {% if t.due_date %}
+        <div class="small text-muted">{{ t.due_date }}</div>
+      {% endif %}
+    </div>
+  </div>
+  <button
+    class="btn btn-sm btn-outline-danger"
+    hx-post="{% url 'web_planner_delete' t.id %}"
+    hx-headers='{"X-HTTP-Method-Override": "DELETE"}'
+    hx-target="#planner-tasks"
+    hx-swap="innerHTML">
+    ×
+  </button>
+</div>

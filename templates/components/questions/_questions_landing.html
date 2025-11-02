@@ -1,0 +1,19 @@
+{# components/questions/_questions_landing.html #}
+<div class="card-soft p-3">
+  <div class="d-flex align-items-center justify-content-between">
+    <div class="fw-semibold">Choose question type</div>
+  </div>
+  <div class="d-flex gap-2 mt-2">
+    <a class="btn btn-primary btn-sm"
+       hx-get="{% url 'web_questions_list' %}?qtype=mcq&limit={{ limit }}{% if subject_id %}&subject_id={{ subject_id }}{% endif %}{% if lesson_id %}&lesson_id={{ lesson_id }}{% endif %}{% if source %}&source={{ source }}{% endif %}{% if kind %}&kind={{ kind }}{% endif %}{% if exam_year %}&exam_year={{ exam_year }}{% endif %}{% if part_type %}&part_type={{ part_type }}{% endif %}"
+       hx-target="#q-panel-body" hx-swap="innerHTML">
+      MCQ
+    </a>
+    <a class="btn btn-outline-primary btn-sm"
+       hx-get="{% url 'web_questions_list' %}?qtype=written&limit={{ limit }}{% if subject_id %}&subject_id={{ subject_id }}{% endif %}{% if lesson_id %}&lesson_id={{ lesson_id }}{% endif %}{% if source %}&source={{ source }}{% endif %}{% if kind %}&kind={{ kind }}{% endif %}{% if exam_year %}&exam_year={{ exam_year }}{% endif %}{% if part_type %}&part_type={{ part_type }}{% endif %}"
+       hx-target="#q-panel-body" hx-swap="innerHTML">
+      Written
+    </a>
+  </div>
+  <div class="text-muted small mt-2">No data will be loaded until you choose a type.</div>
+</div>

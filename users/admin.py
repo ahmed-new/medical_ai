@@ -31,3 +31,62 @@ class UserAdmin(BaseUserAdmin):
     )
 
     readonly_fields = ("activated_at", "expires_at" ,"active_device_id")  # بيتحددوا أوتوماتيك لما يتفعّل الاشتراك
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+from django.contrib import admin
+from .models import Plan, Coupon, Subscription
+
+
+# ---------- Plan ----------
+@admin.register(Plan)
+class PlanAdmin(admin.ModelAdmin):
+    list_display = ("name", "code", "price_egp", "duration_days", "is_active")
+    list_editable = ("price_egp", "duration_days", "is_active")
+    search_fields = ("name", "code")
+    list_filter = ("is_active",)
+    ordering = ("price_egp",)
+
+
+# ---------- Coupon ----------
+@admin.register(Coupon)
+class CouponAdmin(admin.ModelAdmin):
+    list_display = ("code", "percent", "usage_progress", "is_active", "valid_from", "valid_to")
+    list_editable = ("percent", "is_active")
+    search_fields = ("code",)
+    list_filter = ("is_active",)
+    ordering = ("-is_active", "code")
+
+    @admin.display(description="Usage")
+    def usage_progress(self, obj: Coupon):
+        if obj.max_uses_total is None:
+            return f"{obj.used_count_total} / ∞"
+        return f"{obj.used_count_total} / {obj.max_uses_total}"
+
+
+# ---------- Subscription ----------
+@admin.register(Subscription)
+class SubscriptionAdmin(admin.ModelAdmin):
+    list_display = ("user", "plan", "status", "is_trial", "started_at", "ends_at", "final_price_egp", "coupon_code")
+    list_filter = ("status", "is_trial", "plan")
+    search_fields = ("user__username", "user__email", "plan__code", "coupon_code")
+    ordering = ("-started_at",)
+    autocomplete_fields = ("user", "plan")
+    actions = ("mark_as_expired",)
+
+    @admin.action(description="Mark selected as EXPIRED")
+    def mark_as_expired(self, request, queryset):
+        updated = queryset.update(status=Subscription.Status.EXPIRED)
+        self.message_user(request, f"{updated} subscription(s) marked as EXPIRED.")

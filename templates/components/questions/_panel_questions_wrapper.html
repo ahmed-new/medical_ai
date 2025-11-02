@@ -1,0 +1,13 @@
+<div class="card-soft p-3">
+  <h5 class="mb-3">Questions</h5>
+
+  <div
+    id="q-panel-body"
+    hx-get="{% url 'web_questions_list' %}?subject_id={{ subject_id }}{% if lesson_id %}&lesson_id={{ lesson_id }}{% endif %}{% if source %}&source={{ source }}{% endif %}{% if kind %}&kind={{ kind }}{% endif %}{% if exam_year %}&exam_year={{ exam_year }}{% endif %}{% if part_type %}&part_type={{ part_type }}{% endif %}"
+    hx-trigger="load"
+    hx-target="this"
+    hx-swap="innerHTML"
+  >
+    <div class="text-muted small">Loading…</div>
+  </div>
+</div>

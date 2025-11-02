@@ -1,0 +1,13 @@
+{# templates/components/_lesson_done_button.html #}
+{% if is_done %}
+  <span class="badge bg-success px-3 py-2">✓ Done</span>
+{% else %}
+  <button
+    class="btn btn-outline-success btn-sm"
+    hx-post="{% url 'web_mark_lesson_done' lesson_id=lesson_id %}"
+    hx-trigger="click"
+    hx-swap="outerHTML"
+    hx-target="this">
+    Mark as done ✓
+  </button>
+{% endif %}

@@ -1,0 +1,16 @@
+{% for s in semesters %}
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <span>{{ s.name }} (ID {{ s.id }})</span>
+    <button
+      class="btn btn-outline-primary btn-sm"
+      hx-get="{% url 'q_nav_modules' %}?semester_id={{ s.id }}"
+      hx-target="#q-modules"
+      hx-swap="innerHTML"
+      hx-indicator="#q-loading"
+    >
+      Open
+    </button>
+  </div>
+{% empty %}
+  <p class="text-muted mb-0">No semesters.</p>
+{% endfor %}

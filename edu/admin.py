@@ -24,7 +24,7 @@ class SemesterAdmin(admin.ModelAdmin):
 
 @admin.register(Module)
 class ModuleAdmin(admin.ModelAdmin):
-    list_display  = ("name", "semester", "order", "id")
+    list_display  = ("name", "semester", "order", "id","is_ready")
     list_filter   = ("semester__year", "semester")
     list_editable = ("order",)
     search_fields = ("name",)

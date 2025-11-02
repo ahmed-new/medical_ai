@@ -1,0 +1,19 @@
+{# لا يعمل أي Calls للـAPI؛ فقط أزرار اختيار النوع #}
+<div class="card-soft p-3">
+  <div class="d-flex align-items-center justify-content-between">
+    <div class="fw-semibold">Choose question type</div>
+  </div>
+  <div class="d-flex gap-2 mt-2">
+    <a class="btn btn-primary btn-sm"
+       hx-get="{% url 'web_lesson_questions' lesson_id=lesson_id %}?qtype=mcq&limit={{ limit }}"
+       hx-target="#tab-questions" hx-swap="innerHTML">
+      MCQ
+    </a>
+    <a class="btn btn-outline-primary btn-sm"
+       hx-get="{% url 'web_lesson_questions' lesson_id=lesson_id %}?qtype=written&limit={{ limit }}"
+       hx-target="#tab-questions" hx-swap="innerHTML">
+      Written
+    </a>
+  </div>
+  <div class="text-muted small mt-2">No data will be loaded until you choose a type.</div>
+</div>

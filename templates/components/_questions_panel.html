@@ -1,0 +1,192 @@
+{# expects: lesson_id, limit, offset, next_offset, has_more, items, qtype #}
+
+<style>
+  /* خلي التاب واضح إنه قابل للضغط */
+  .nav-pills .nav-link { cursor: pointer; }
+</style>
+
+<ul class="nav nav-pills mb-2">
+  <li class="nav-item">
+    <a class="nav-link {% if qtype == 'mcq' %}active{% endif %}"
+       hx-get="{% url 'web_lesson_questions' lesson_id=lesson_id %}?limit={{ limit }}&qtype=mcq"
+       hx-target="#tab-questions" hx-swap="innerHTML">
+      MCQ
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if qtype == 'written' %}active{% endif %}"
+       hx-get="{% url 'web_lesson_questions' lesson_id=lesson_id %}?limit={{ limit }}&qtype=written"
+       hx-target="#tab-questions" hx-swap="innerHTML">
+      Written
+    </a>
+  </li>
+</ul>
+
+<div class="card-soft p-3">
+  <form id="q-filter"
+        class="row g-2 align-items-end"
+        hx-get="{% url 'web_lesson_questions' lesson_id=lesson_id %}"
+        hx-target="#tab-questions"
+        hx-swap="innerHTML">
+    <div class="col-auto">
+      <label class="form-label small">Number of questions</label>
+      <input type="number" min="1" max="100" name="limit" value="{{ limit }}"
+             class="form-control form-control-sm" style="width:120px;">
+    </div>
+    <input type="hidden" name="offset" value="0">
+    <input type="hidden" name="qtype" value="{{ qtype }}">
+
+    <div class="col-auto">
+      <button class="btn btn-primary btn-sm" type="submit">
+        <span class="spinner-border spinner-border-sm me-1 htmx-indicator" role="status"></span>
+        Load
+      </button>
+    </div>
+
+    <div class="col-auto ms-auto">
+      <button type="button" id="solve-all" class="btn btn-outline-primary btn-sm">
+        <span class="spinner-border spinner-border-sm me-1 d-none" id="solve-all-spin" role="status"></span>
+        Solve all
+      </button>
+
+      <!-- زرار Reveal All الصحيح (مخفي مبدئيًا) -->
+      <button type="button" id="reveal-all" class="btn btn-outline-danger btn-sm d-none">
+        <span class="spinner-border spinner-border-sm me-1 d-none" id="reveal-all-spin" role="status"></span>
+        Show all answers
+      </button>
+    </div>
+  </form>
+</div>
+
+
+<div id="q-list" class="mt-3">
+  {% include "components/_questions_list_items.html" %}
+</div>
+
+<div id="q-load-more" class="mt-3 text-center">
+  {% if has_more %}
+    <button
+      class="btn btn-outline-secondary btn-sm"
+      hx-get="{% url 'web_lesson_questions' lesson_id=lesson_id %}?mode=list&limit={{ limit }}&offset={{ next_offset }}&qtype={{ qtype }}"
+      hx-target="#q-list"
+      hx-swap="beforeend">
+      <span class="spinner-border spinner-border-sm me-1 htmx-indicator" role="status"></span>
+      Load more
+    </button>
+  {% else %}
+    <span class="text-muted small">No more questions.</span>
+  {% endif %}
+</div>
+
+<script>
+  (function(){
+    const container = document.getElementById('q-list');
+
+    // ===== helpers =====
+    const qs = (root, sel) => Array.from(root.querySelectorAll(sel));
+    const hasAnyRevealable = () => {
+      // يظهر الزر فقط لو فيه كرت متفتح وجواه زرار .q-reveal
+      return !!container.querySelector('.q-card .q-reveal');
+    };
+    const setRevealAllVisible = (visible) => {
+      const btn = document.getElementById('reveal-all');
+      if (!btn) return;
+      btn.classList.toggle('d-none', !visible);
+    };
+
+    // أول تحميل
+    setRevealAllVisible(hasAnyRevealable());
+
+    // بعد أي swap داخل #q-list (load، load more، expand، submit/reveal…)
+    document.body.addEventListener('htmx:afterSwap', (e) => {
+      if (!container) return;
+      if (container.contains(e.target)) {
+        setRevealAllVisible(hasAnyRevealable());
+      }
+    });
+
+    // ===== Solve all (زي ما هو بس بدون التكرار) =====
+    const solveBtn = document.getElementById('solve-all');
+    const solveSpin = document.getElementById('solve-all-spin');
+
+    if (solveBtn && container) {
+      solveBtn.addEventListener('click', () => {
+        const cards = qs(container, '.q-card');
+        const targets = cards.filter(c => {
+          const d = c.querySelector('.q-detail');
+          // لسه ما اتملاش (لسه مش expanded)
+          return d && !d.hasChildNodes();
+        });
+        if (!targets.length) return;
+
+        solveBtn.disabled = true;
+        solveSpin.classList.remove('d-none');
+
+        let remaining = targets.length;
+        const onSwap = (ev) => {
+          const tgt = ev.target;
+          if (tgt && tgt.classList && tgt.classList.contains('q-detail')) {
+            remaining--;
+            if (remaining <= 0) {
+              container.removeEventListener('htmx:afterSwap', onSwap);
+              solveBtn.disabled = false;
+              solveSpin.classList.add('d-none');
+              // بعد ما فتحنا تفاصيل كتير، غالبًا بقى فيه .q-reveal → حدّث الظهور
+              setRevealAllVisible(hasAnyRevealable());
+            }
+          }
+        };
+        container.addEventListener('htmx:afterSwap', onSwap);
+
+        const loadingHTML =
+          '<div class="text-muted small"><span class="spinner-border spinner-border-sm me-1"></span> Loading…</div>';
+
+        targets.forEach((card, i) => {
+          const detail = card.querySelector('.q-detail');
+          const solveOneBtn = card.querySelector('.q-solve');
+          if (!detail || !solveOneBtn) { remaining--; return; }
+          detail.innerHTML = loadingHTML;
+          setTimeout(() => { htmx.trigger(solveOneBtn, 'click'); }, i * 60);
+        });
+      });
+    }
+
+    // ===== Show all answers (Reveal all) =====
+    const revealBtnAll = document.getElementById('reveal-all');
+    const revealSpinAll = document.getElementById('reveal-all-spin');
+
+    if (revealBtnAll && container) {
+      revealBtnAll.addEventListener('click', () => {
+        // هنستهدف الكروت اللي فيها زرار .q-reveal (يعني متفتحة ومش متكشفة لسه)
+        const targets = qs(container, '.q-card').filter(c => c.querySelector('.q-reveal'));
+        if (!targets.length) return;
+
+        revealBtnAll.disabled = true;
+        revealSpinAll.classList.remove('d-none');
+
+        let remaining = targets.length;
+        const onSwapReveal = (ev) => {
+          const tgt = ev.target;
+          if (tgt && tgt.classList && tgt.classList.contains('q-detail')) {
+            remaining--;
+            if (remaining <= 0) {
+              container.removeEventListener('htmx:afterSwap', onSwapReveal);
+              revealBtnAll.disabled = false;
+              revealSpinAll.classList.add('d-none');
+              // بعد الكشف، غالبًا مش هيبقى فيه .q-reveal → اخف الزر لو مفيش هدف
+              setRevealAllVisible(hasAnyRevealable());
+            }
+          }
+        };
+        container.addEventListener('htmx:afterSwap', onSwapReveal);
+
+        targets.forEach((card, i) => {
+          const revealBtn = card.querySelector('.q-reveal');
+          if (!revealBtn) { remaining--; return; }
+          setTimeout(() => { htmx.trigger(revealBtn, 'click'); }, i * 60);
+        });
+      });
+    }
+  })();
+</script>
+

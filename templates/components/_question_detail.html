@@ -1,0 +1,68 @@
+{# templates/components/_question_detail.html #}
+<div class="card-soft p-3">
+  {% if q.image %}
+    <div class="mb-2">
+      <img src="{{ q.image }}" class="img-fluid rounded" alt="question image">
+    </div>
+  {% endif %}
+
+  {% if q.question_type == "mcq" %}
+    <form class="vstack gap-3"
+          hx-post="{% url 'web_question_attempt' pk=q.id %}"
+          hx-target="this"
+          hx-swap="outerHTML">
+      <div class="vstack gap-2">
+        {% for o in q.options %}
+          <label class="d-flex align-items-center gap-2">
+            <input type="radio" name="option_id" value="{{ o.id }}" required>
+            <span>{{ o.text }}</span>
+          </label>
+        {% endfor %}
+      </div>
+      <div class="d-flex gap-2">
+        <button class="btn btn-primary btn-sm" type="submit">
+          <span class="spinner-border spinner-border-sm me-1 htmx-indicator" role="status"></span>
+          Submit
+        </button>
+        <button class="btn btn-outline-secondary btn-sm q-reveal"
+        hx-get="{% url 'web_question_reveal' pk=q.id %}"
+        hx-target="closest .q-card .q-detail"
+        hx-swap="innerHTML">
+  <span class="spinner-border spinner-border-sm me-1 htmx-indicator" role="status"></span>
+  Show answer
+</button>
+
+        <button class="btn btn-light btn-sm" type="button"
+                onclick="this.closest('.card-soft').remove()">Close</button>
+      </div>
+    </form>
+  {% else %}
+    <div class="d-flex flex-wrap gap-2">
+      <button class="btn btn-success btn-sm"
+              hx-post="{% url 'web_question_attempt' pk=q.id %}"
+              hx-vals='{"is_correct":"1"}'
+              hx-target="this"
+              hx-swap="outerHTML">
+        <span class="spinner-border spinner-border-sm me-1 htmx-indicator" role="status"></span>
+        I got it right
+      </button>
+      <button class="btn btn-danger btn-sm"
+              hx-post="{% url 'web_question_attempt' pk=q.id %}"
+              hx-vals='{"is_correct":"0"}'
+              hx-target="this"
+              hx-swap="outerHTML">
+        <span class="spinner-border spinner-border-sm me-1 htmx-indicator" role="status"></span>
+        I got it wrong
+      </button>
+      <button class="btn btn-outline-secondary btn-sm q-reveal"
+        hx-get="{% url 'web_question_reveal' pk=q.id %}"
+        hx-target="closest .q-card .q-detail"
+        hx-swap="innerHTML">
+  Show answer
+</button>
+
+      <button class="btn btn-light btn-sm" type="button"
+              onclick="this.closest('.card-soft').remove()">Close</button>
+    </div>
+  {% endif %}
+</div>

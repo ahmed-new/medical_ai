@@ -1,0 +1,29 @@
+{# expects: items = list of questions lite #}
+{% if items %}
+  <div class="list-group">
+    {% for q in items %}
+      <div class="list-group-item">
+        <div class="d-flex justify-content-between align-items-start gap-3">
+          <div>
+            <div class="fw-semibold">{{ q.text|default:"Question" }}</div>
+            <div class="small text-muted">
+              {{ q.question_type|default:"" }}{% if q.part_type %} · {{ q.part_type }}{% endif %}
+              {% if q.source_type %} · {{ q.source_type }}{% endif %}
+              {% if q.exam_kind %} · {{ q.exam_kind }}{% endif %}
+              {% if q.exam_year %} · {{ q.exam_year }}{% endif %}
+            </div>
+          </div>
+          <button class="btn btn-outline-primary btn-sm"
+                  hx-get="{% url 'web_question_detail' pk=q.id %}"
+                  hx-target="#qdetail-{{ q.id }}"
+                  hx-swap="innerHTML">
+            Solve
+          </button>
+        </div>
+        <div id="qdetail-{{ q.id }}" class="mt-3"></div>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="alert alert-secondary">No questions for this lesson yet.</div>
+{% endif %}

@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.db.models import Q
 from .policy import can_view_questions, sources_allowed ,can_view_lesson_content ,flashcard_visibility_q 
-from .models import Year, Semester, Module, Subject, Chapter, Lesson ,Question ,FlashCard,FavoriteLesson ,LessonProgress,PlannerTask
+from .models import Year, Semester, Module, Subject, Chapter, Lesson ,Question ,FlashCard,FavoriteLesson ,LessonProgress,PlannerTask,QuestionOption
 from .serializers import (
     YearSerializer, SemesterSerializer, ModuleSerializer,
     SubjectSerializer, LessonSerializer ,QuestionLiteSerializer ,QuestionDetailSerializer,LessonLiteSerializer,
@@ -68,9 +68,9 @@ class StudentModules(APIView):
             return Response([], status=200)
 
         semester_id = request.query_params.get("semester_id")
-        qs = Module.objects.filter(semester__year=year)
+        qs = Module.objects.filter(semester__year=year , is_ready=True)
         if semester_id:
-            qs = qs.filter(semester_id=semester_id, semester__year=year)
+            qs = qs.filter(semester_id=semester_id, semester__year=year ,is_ready=True)
         qs = qs.order_by("order","id")
         return Response(ModuleSerializer(qs, many=True).data, status=200)
 
@@ -82,9 +82,9 @@ class StudentSubjects(APIView):
             return Response([], status=200)
 
         module_id = request.query_params.get("module_id")
-        qs = Subject.objects.filter(module__semester__year=year)
+        qs = Subject.objects.filter(module__semester__year=year, module__is_ready=True)
         if module_id:
-            qs = qs.filter(module_id=module_id, module__semester__year=year)
+            qs = qs.filter(module_id=module_id, module__semester__year=year, module__is_ready=True)
         qs = qs.order_by("order","id")
         return Response(SubjectSerializer(qs, many=True).data, status=200)
 
@@ -101,7 +101,8 @@ class StudentChapters(APIView):
             return Response({"detail": "subject_id is required"}, status=400)
         qs = Chapter.objects.filter(
             subject_id=subject_id,
-            subject__module__semester__year=year
+            subject__module__semester__year=year,
+            subject__module__is_ready=True
         ).order_by("order", "id")
         from .serializers import ChapterSerializer
         return Response(ChapterSerializer(qs, many=True).data, status=200)
@@ -130,7 +131,7 @@ class StudentLessons(APIView):
 
         subject_id = request.query_params.get("subject_id")
         chapter_id = request.query_params.get("chapter_id")   # NEW
-        qs = Lesson.objects.filter(subject__module__semester__year=year)
+        qs = Lesson.objects.filter(subject__module__semester__year=year,subject__module__is_ready=True)
         
         
         if subject_id:
@@ -158,7 +159,7 @@ class LessonDetail(APIView):
         try:
             obj = (Lesson.objects
        .select_related("subject", "chapter")
-       .get(pk=pk, subject__module__semester__year=year))
+       .get(pk=pk, subject__module__semester__year=year,subject__module__is_ready=True))
             
         except Lesson.DoesNotExist:
             return Response({"detail": "Lesson not found"}, status=404)
@@ -232,6 +233,11 @@ class StudentQuestions(APIView):
         q_filters |= Q(module__semester__year=year)
         q_filters |= Q(year__code=year.code)
         qs = qs.filter(q_filters)
+        qs = qs.filter(
+            Q(lesson__subject__module__is_ready=True) |
+            Q(subject__module__is_ready=True) |
+            Q(module__is_ready=True)
+        )
 
         # فلاتر اختيارية
         if lesson_id:
@@ -328,15 +334,24 @@ class StudentQuestionDetail(APIView):
             return Response({"detail": "No study year set for user."}, status=400)
 
         try:
-            obj = (Question.objects
-                   .filter(
-                        Q(lesson__subject__module__semester__year=year) |
-                        Q(subject__module__semester__year=year) |
-                        Q(module__semester__year=year) |
-                        Q(year__code=year.code),
-                        source_type__in=list(sources_allowed(request.user))
-                    )
-                   .get(pk=pk))
+            obj = (
+                Question.objects.filter(
+                    # سنة المستخدم
+                    Q(lesson__subject__module__semester__year=year) |
+                    Q(subject__module__semester__year=year) |
+                    Q(module__semester__year=year) |
+                    Q(year__code=year.code),
+                    # مصادر مسموحة حسب الخطة
+                    source_type__in=list(sources_allowed(request.user))
+                )
+                # ✅ الموديول لازم يكون جاهز (أي مسار ربط)
+                .filter(
+                    Q(lesson__subject__module__is_ready=True) |
+                    Q(subject__module__is_ready=True) |
+                    Q(module__is_ready=True)
+                )
+                .get(pk=pk)
+            )
         except Question.DoesNotExist:
             return Response({"detail": "Question not found"}, status=404)
 
@@ -378,6 +393,10 @@ class FlashCardListCreate(APIView):
             Q(subject__module__semester__year=year)
         )
         qs = qs.filter(year_filter)
+        qs = qs.filter(
+            Q(lesson__subject__module__is_ready=True) |
+            Q(subject__module__is_ready=True)
+        )
 
         # فلاتر سياقية
         if lesson_id:
@@ -421,6 +440,11 @@ class FlashCardListCreate(APIView):
         if subject and subject.module.semester.year_id != year.id:
             return Response({"detail": "Subject not in your year"}, status=403)
 
+        if lesson and not lesson.subject.module.is_ready:
+            return Response({"detail": "Module is not ready yet"}, status=403)
+        if subject and not subject.module.is_ready:
+            return Response({"detail": "Module is not ready yet"}, status=403)
+        
         fc = FlashCard.objects.create(
             owner_type="user",
             owner=request.user,
@@ -509,7 +533,11 @@ class FavoriteLessonList(APIView):
 
         qs = (FavoriteLesson.objects
               .filter(user=request.user,
-                      lesson__subject__module__semester__year=year))
+                      lesson__subject__module__semester__year=year)
+              .filter(
+                lesson__subject__module__is_ready=True   # ✅
+            ))
+
 
         # pagination البسيطة
         try:
@@ -540,7 +568,7 @@ class FavoriteLessonIDs(APIView):
 
         ids = (FavoriteLesson.objects
                .filter(user=request.user,
-                       lesson__subject__module__semester__year=year)
+                       lesson__subject__module__semester__year=year , lesson__subject__module__is_ready=True)
                .values_list("lesson_id", flat=True))
         return Response({"ids": list(ids)}, status=200)
 
@@ -567,6 +595,9 @@ class FavoriteLessonAdd(APIView):
         except Lesson.DoesNotExist:
             return Response({"detail": "Lesson not found in your year"}, status=404)
 
+        if not lesson.subject.module.is_ready:
+            return Response({"detail": "Module is not ready yet"}, status=403)
+        
         obj, created = FavoriteLesson.objects.get_or_create(user=request.user, lesson=lesson)
         record_activity(request.user)
         return Response({"id": obj.id, "created": created}, status=201 if created else 200)
@@ -591,7 +622,8 @@ class FavoriteLessonRemove(APIView):
         deleted, _ = (FavoriteLesson.objects
                       .filter(user=request.user,
                               lesson_id=lesson_id,
-                              lesson__subject__module__semester__year=year)
+                              lesson__subject__module__semester__year=year,
+                              lesson__subject__module__is_ready=True )
                       .delete())
         record_activity(request.user)
         return Response({"deleted": bool(deleted)}, status=200)
@@ -635,7 +667,7 @@ class LessonMarkDoneView(APIView):
 
     def post(self, request, lesson_id):
         try:
-            lesson = Lesson.objects.get(pk=lesson_id)
+            lesson = Lesson.objects.get(pk=lesson_id ,subject__module__is_ready=True)
         except Lesson.DoesNotExist:
             return Response({"detail": "Lesson not found"}, status=404)
 
@@ -664,7 +696,9 @@ class LessonProgressIDs(APIView):
 
         qs = (LessonProgress.objects
               .filter(user=request.user, is_done=True,
-                      lesson__subject__module__semester__year=year))
+                      lesson__subject__module__semester__year=year).filter(
+    lesson__subject__module__is_ready=True   # ✅
+))
 
         subject_id = request.query_params.get("subject_id")
         if subject_id:
@@ -721,12 +755,9 @@ class PlannerTaskListCreate(APIView):
         )
 
     def post(self, request):
-        data = request.data.copy()
-        data["user"] = request.user.id
-        ser = PlannerTaskSerializer(data=data)
-        if not ser.is_valid():
-            return Response(ser.errors, status=400)
-        obj = ser.save()
+        ser = PlannerTaskSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        obj = ser.save(user=request.user)  # ← دي أهم سطر
         record_activity(request.user)
         return Response({"id": obj.id}, status=201)
 
@@ -840,30 +871,120 @@ class StudySessionListCreate(APIView):
 
 
 
+# edu/views.py  (استبدل الكلاس القديم)
 class QuestionAttemptCreate(APIView):
     permission_classes = [IsAuthenticated, SingleDeviceOnly]
+
     def post(self, request, pk: int):
-        # تأكد السؤال متاح لنفس سنة المستخدم وخطته
+        # تأكد السؤال ينتمي لسنة المستخدم ومسموح بالرؤية
         year = _get_user_year(request)
         try:
-            q = (Question.objects
-                 .filter(
+            q = (
+                Question.objects.filter(
+                    # سنة المستخدم
                     Q(lesson__subject__module__semester__year=year) |
                     Q(subject__module__semester__year=year) |
                     Q(module__semester__year=year) |
                     Q(year__code=year.code),
+                    # مصادر مسموحة
                     source_type__in=list(sources_allowed(request.user))
-                 ).get(pk=pk))
+                )
+                # ✅ لازم الموديول يكون جاهز
+                .filter(
+                    Q(lesson__subject__module__is_ready=True) |
+                    Q(subject__module__is_ready=True) |
+                    Q(module__is_ready=True)
+                )
+                .get(pk=pk)
+            )
+        except Question.DoesNotExist:
+            return Response({"detail": "Question not found"}, status=404)
+        
+        option_id = request.data.get("option_id")
+        is_correct = request.data.get("is_correct")
+
+        # لو MCQ نفضّل استقبال option_id ونحسب الصح/الغلط فى السيرفر
+        if q.question_type == Question.QuestionType.MCQ:
+            if not option_id:
+                return Response({"detail":"option_id is required for MCQ"}, status=400)
+            try:
+                opt = q.options.get(pk=int(option_id))
+            except QuestionOption.DoesNotExist:
+                return Response({"detail":"option not found"}, status=404)
+            is_correct = bool(opt.is_correct)
+        else:
+            # written: لو ما بعتش is_correct اعتبرها False
+            is_correct = bool(is_correct)
+
+        QuestionAttempt.objects.create(
+            user=request.user, question=q, is_correct=is_correct
+        )
+
+        # هنرجّع النتيجة + بيانات تساعد الواجهة
+        correct_opt = None
+        if q.question_type == Question.QuestionType.MCQ:
+            try:
+                correct_opt = q.options.get(is_correct=True).id
+            except QuestionOption.DoesNotExist:
+                correct_opt = None
+
+        return Response({
+            "correct": bool(is_correct),
+            "correct_option_id": correct_opt,
+            "explanation": q.explanation or "",
+        }, status=201)
+
+
+
+
+
+
+
+
+
+# edu/views.py
+class QuestionReveal(APIView):
+    permission_classes = [IsAuthenticated, SingleDeviceOnly]
+
+    def get(self, request, pk: int):
+        year = _get_user_year(request)
+        try:
+            q = (
+                Question.objects.filter(
+                    # سنة المستخدم
+                    Q(lesson__subject__module__semester__year=year) |
+                    Q(subject__module__semester__year=year) |
+                    Q(module__semester__year=year) |
+                    Q(year__code=year.code),
+                    # مصادر مسموحة
+                    source_type__in=list(sources_allowed(request.user))
+                )
+                # ✅ لازم الموديول يكون جاهز
+                .filter(
+                    Q(lesson__subject__module__is_ready=True) |
+                    Q(subject__module__is_ready=True) |
+                    Q(module__is_ready=True)
+                )
+                .get(pk=pk)
+            )
         except Question.DoesNotExist:
             return Response({"detail":"Question not found"}, status=404)
 
-        ser = QuestionAttemptCreateSerializer(data=request.data)
-        if not ser.is_valid():
-            return Response(ser.errors, status=400)
-        QuestionAttempt.objects.create(
-            user=request.user, question=q, is_correct=ser.validated_data["is_correct"]
-        )
-        return Response({"detail":"recorded"}, status=201)
+        data = {"explanation": q.explanation or ""}
+        if q.question_type == Question.QuestionType.MCQ:
+            try:
+                data["correct_option_id"] = q.options.get(is_correct=True).id
+            except QuestionOption.DoesNotExist:
+                data["correct_option_id"] = None
+        else:
+            data["answer_text"] = q.answer_text or ""
+
+        return Response(data, status=200)
+
+
+
+
+
 
 
 class QuestionAttemptsStats(APIView):

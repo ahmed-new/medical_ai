@@ -22,5 +22,5 @@ class RegisterSerializer(serializers.ModelSerializer):
 class MeSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["id", "username", "email", "study_year", "plan",
+        fields = ["id", "username", "email","phone_number", "study_year", "plan",
                   "is_active_subscription", "activated_at", "expires_at"]

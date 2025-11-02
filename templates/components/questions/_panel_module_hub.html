@@ -1,0 +1,28 @@
+<div class="card-soft p-3">
+  <h5 class="mb-3">Choose what you want to do</h5>
+  <div class="list-group">
+    <button
+      class="list-group-item list-group-item-action"
+      hx-get="{% url 'q_panel_subjects' %}?module_id={{ module_id }}&source=exams"
+      hx-target="#q-main-panel"
+      hx-swap="innerHTML"
+      hx-indicator="#q-loading"
+    >Exams</button>
+
+    <button
+      class="list-group-item list-group-item-action"
+      hx-get="{% url 'q_panel_old_hub' %}?module_id={{ module_id }}"
+      hx-target="#q-main-panel"
+      hx-swap="innerHTML"
+      hx-indicator="#q-loading"
+    >Old Exams</button>
+
+    <button
+      class="list-group-item list-group-item-action"
+      hx-get="{% url 'q_panel_examreview_hub' %}?module_id={{ module_id }}"
+      hx-target="#q-main-panel"
+      hx-swap="innerHTML"
+      hx-indicator="#q-loading"
+    >Exam review</button>
+  </div>
+</div>

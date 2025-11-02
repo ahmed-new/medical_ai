@@ -4,7 +4,8 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.conf import settings
 from django.core.validators import RegexValidator
-
+from django.core.validators import MinValueValidator, MaxValueValidator
+from decimal import Decimal
 
 
 phone_validator = RegexValidator(
@@ -52,6 +53,89 @@ class User(AbstractUser):
             self.expires_at = self.activated_at + timedelta(days=365)
         super().save(*args, **kwargs)
 
+
+
+
+class Plan(models.Model):
+    """
+    باقات بالجنيه ومدّة بالأيام.
+    """
+    code = models.CharField(max_length=32, choices=User.Plan.choices, unique=True, db_index=True)
+    name = models.CharField(max_length=64)
+    price_egp = models.DecimalField(max_digits=9, decimal_places=2, validators=[MinValueValidator(0)])
+    duration_days = models.PositiveIntegerField(default=365)
+    is_active = models.BooleanField(default=True, db_index=True)
+
+    def __str__(self):
+        return f"{self.name} ({self.code})"
+
+
+class Coupon(models.Model):
+    """
+    خصم بالنسبة المئوية فقط + حدود استخدام.
+    """
+    code = models.CharField(max_length=32, unique=True, db_index=True)  # مثال: SAVE20
+    percent = models.DecimalField(
+        max_digits=5, decimal_places=2,
+        validators=[MinValueValidator(0), MaxValueValidator(100)]
+    )
+
+    # الصلاحية الزمنية (اختياري)
+    valid_from = models.DateTimeField(blank=True, null=True)
+    valid_to   = models.DateTimeField(blank=True, null=True)
+    is_active  = models.BooleanField(default=True, db_index=True)
+
+    # حدود الاستخدام
+    max_uses_total   = models.PositiveIntegerField(blank=True, null=True)  # None = غير محدود
+    used_count_total = models.PositiveIntegerField(default=0)
+    
+    def __str__(self):
+        return f"{self.code} (-{self.percent}%)"
+
+    def is_valid_now(self) -> bool:
+        now = timezone.now()
+        if not self.is_active:
+            return False
+        if self.valid_from and now < self.valid_from:
+            return False
+        if self.valid_to and now > self.valid_to:
+            return False
+        if self.max_uses_total is not None and self.used_count_total >= self.max_uses_total:
+            return False
+        return True
+
+
+
+class Subscription(models.Model):
+    """
+    تمثيل بسيط للاشتراك الحالي (تجريبي أو مدفوع).
+    """
+    class Status(models.TextChoices):
+        TRIAL   = "trial", "Trial"
+        ACTIVE  = "active", "Active"
+        EXPIRED = "expired", "Expired"
+
+    user = models.ForeignKey("users.User", on_delete=models.CASCADE, related_name="subscriptions", db_index=True)
+    plan = models.ForeignKey(Plan, on_delete=models.PROTECT)
+
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.ACTIVE, db_index=True)
+    is_trial = models.BooleanField(default=False, db_index=True)
+
+    started_at = models.DateTimeField(default=timezone.now)
+    ends_at = models.DateTimeField(db_index=True)
+
+
+    # نحتفظ بنص الكوبون فقط لتبسيط الأمور (هنستخدمه لاحقًا)
+    coupon_code = models.CharField(max_length=32, blank=True, null=True)
+    final_price_egp = models.DecimalField(max_digits=9, decimal_places=2, default=Decimal("0.00"))
+
+    def __str__(self):
+        t = "TRIAL" if self.is_trial else "PAID"
+        return f"{self.user} - {self.plan.code} [{t}]"
+
+    @property
+    def is_active_now(self):
+        return self.status in (self.Status.TRIAL, self.Status.ACTIVE) and self.ends_at >= timezone.now()
 
 
 

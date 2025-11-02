@@ -103,29 +103,39 @@
     {% if lessons and lessons|length > 0 %}
       <div class="row g-3">
         {% for l in lessons %}
-            <div class="d-flex align-items-center justify-content-between">
-            <div>
-                <div class="fw-bold">{{ l.title }}</div>
-                {% if l.part_type %}
-                <div class="small text-muted">Part: {{ l.part_type|title }}</div>
-                {% endif %}
-            </div>
+          <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <div class="fw-bold">{{ l.title }}</div>
+            {% if l.part_type %}
+              <div class="small text-muted">Part: {{ l.part_type|title }}</div>
+            {% endif %}
+          </div>
 
-            <div class="d-flex gap-2 align-items-center">
-                <span id="fav-{{ l.id }}">
-                    {% if favorite_ids and l.id in favorite_ids %}
-                        {% include "components/_favorite_button.html" with lesson_id=l.id is_fav=True %}
-                    {% else %}
-                        {% include "components/_favorite_button.html" with lesson_id=l.id is_fav=False %}
-                    {% endif %}
-                </span>
+          <div class="d-flex gap-2 align-items-center">
+            {# ✓ Mark as done / Done badge (HTMX) #}
+            <span id="done-{{ l.id }}">
+              {% if done_ids and l.id in done_ids %}
+                {% include "components/_lesson_done_button.html" with lesson_id=l.id is_done=True %}
+              {% else %}
+                {% include "components/_lesson_done_button.html" with lesson_id=l.id is_done=False %}
+              {% endif %}
+            </span>
 
+            {# ☆ Favorites #}
+            <span id="fav-{{ l.id }}">
+              {% if favorite_ids and l.id in favorite_ids %}
+                {% include "components/_favorite_button.html" with lesson_id=l.id is_fav=True %}
+              {% else %}
+                {% include "components/_favorite_button.html" with lesson_id=l.id is_fav=False %}
+              {% endif %}
+            </span>
 
-                <a class="btn btn-primary btn-sm" href="/materials/lesson/{{ l.id }}/">Open lesson</a>
-            </div>
-            </div>
+            <a class="btn btn-primary btn-sm" href="/materials/lesson/{{ l.id }}/">Open lesson</a>
+          </div>
+        </div>
 
         {% endfor %}
+
       </div>
     {% else %}
       <div class="alert alert-secondary">No lessons found for this chapter{% if active_part_type %} and part{% endif %}.</div>
