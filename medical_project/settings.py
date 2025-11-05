@@ -43,7 +43,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'rag_ai',
-    'users',
+    "users.apps.UsersConfig",
     "edu",
     "web",
     "pgvector.django",
@@ -136,7 +136,7 @@ REST_FRAMEWORK = {
 from datetime import timedelta
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),   # عدّل حسب رغبتك
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=2),   # عدّل حسب رغبتك
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "AUTH_HEADER_TYPES": ("Bearer",),
 }

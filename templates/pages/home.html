@@ -11,6 +11,7 @@
 </div>
 
 <div class="row g-3">
+
   <!-- Streak -->
   <div class="col-12 col-md-6 col-lg-3">
     <div class="card-soft p-3">
@@ -38,17 +39,40 @@
     </div>
   </div>
 
-  <!-- Favorites -->
+  <!-- Favorites clickable -->
   <div class="col-12 col-md-6 col-lg-3">
-    <div class="card-soft p-3">
+    <a href="/materials/favorites/" class="card-soft p-3 text-decoration-none d-block text-dark hover-card">
       <div class="text-muted small">Favorites</div>
       <div class="fw-bold fs-5">{{ fav_lessons_total|default:0 }}</div>
-      <div class="small text-muted">Lessons</div>
-    </div>
+      <div class="small text-muted">View favorite lessons →</div>
+    </a>
   </div>
 </div>
 
-<!-- Trees / Start now -->
+<!-- Last Lesson -->
+{% if last_lesson %}
+<div class="card-soft p-3 my-3 d-flex align-items-center justify-content-between">
+  <div>
+    <div class="fw-bold">Last Lesson Completed</div>
+    <div class="text-muted small">{{ last_lesson.title }}</div>
+  </div>
+  <a class="btn btn-outline-primary btn-sm" href="/materials/lesson/{{ last_lesson.id }}/">Open</a>
+</div>
+{% endif %}
+
+<!-- History -->
+<div class="card-soft p-3 my-3 d-flex align-items-center justify-content-between">
+  <div class="d-flex align-items-center gap-2">
+    <i class="bi bi-clock-history text-muted fs-5"></i>
+    <div>
+      <div class="fw-bold">History</div>
+      <div class="text-muted small">View completed lessons</div>
+    </div>
+  </div>
+  <a class="btn btn-outline-secondary btn-sm" href="/materials/done/">View</a>
+</div>
+
+<!-- Trees / Planner -->
 <div class="card-soft p-3 my-3 d-flex align-items-center justify-content-between">
   <div class="d-flex align-items-center gap-3">
     <div class="display-6 fw-bold">{{ trees_today|default:0 }}</div>
@@ -58,26 +82,5 @@
     </div>
   </div>
   <a class="btn btn-primary" href="/planner/">Start now</a>
-</div>
-
-<!-- CTA -->
-<div class="card-soft p-3 mb-3 d-flex align-items-center justify-content-between">
-  <div class="text-muted">What do you want to learn today?</div>
-  <a class="btn btn-outline-primary btn-sm" href="/materials/">Get started</a>
-</div>
-
-<div class="row g-3">
-  <div class="col-12 col-md-6">
-    <div class="card-soft p-4 d-flex flex-column gap-2">
-      <div class="fw-bold">Learn new subject!</div>
-      <a class="btn btn-primary btn-sm mt-2" href="/materials/">Get started</a>
-    </div>
-  </div>
-  <div class="col-12 col-md-6">
-    <div class="card-soft p-4 d-flex flex-column gap-2">
-      <div class="fw-bold">Open Question Bank</div>
-      <a class="btn btn-primary btn-sm mt-2" href="/questions/">Go</a>
-    </div>
-  </div>
 </div>
 {% endblock %}

@@ -3,9 +3,12 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
-
+from django.db import transaction
 from django.contrib.auth import get_user_model
-from .serializers import RegisterSerializer, MeSerializer
+from .serializers import RegisterSerializer, MeSerializer ,CreatePaymentSerializer
+from .models import Subscription
+
+
 
 User = get_user_model()
 
@@ -259,3 +262,44 @@ class CouponValidateView(APIView):
                 })
 
         return Response(data, status=200)
+
+
+
+
+
+
+
+
+INSTAPAY_LINK = "https://ipn.eg/S/mohammadalqady/instapay/8fREG1"
+
+class CreatePaymentView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request):
+        serializer = CreatePaymentSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        payment = serializer.save()
+
+        # أنشئ اشتراك Pending مربوط بالدفع
+        sub, created = Subscription.objects.get_or_create(
+            payment=payment,
+            defaults={
+                "user": request.user,
+                "plan": payment.plan,
+                "status": Subscription.Status.PENDING,
+                "is_trial": False,
+                "coupon_code": payment.discount_code,
+                "final_price_egp": payment.final_price,
+            },
+        )
+
+        return Response({
+            "payment_id": str(payment.id),
+            "plan": payment.plan.name,
+            "plan_code": payment.plan.code,
+            "final_price": str(payment.final_price),
+            "notes_code": payment.notes_code,
+            "status": payment.status,
+            "instapay_link": INSTAPAY_LINK,
+        }, status=201)

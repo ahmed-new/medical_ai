@@ -120,9 +120,17 @@ class FlashCardCreateUpdateSerializer(serializers.ModelSerializer):
         fields = ["lesson", "subject", "question", "answer", "order"]
 
     def validate(self, data):
-        # لازم واحد على الأقل: lesson أو subject
-        if not data.get("lesson") and not data.get("subject"):
+        """
+        لو إنشاء جديد: لازم يبقى فيه lesson أو subject.
+        لو تعديل (instance موجود): نسمح إنهم مايجوش فى الـ data
+        ونستخدم القيم اللى فى الـ instance.
+        """
+        lesson  = data.get("lesson")  or getattr(self.instance, "lesson", None)
+        subject = data.get("subject") or getattr(self.instance, "subject", None)
+
+        if not lesson and not subject:
             raise serializers.ValidationError("Provide at least lesson or subject.")
+
         return data
     
 

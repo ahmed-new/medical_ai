@@ -27,51 +27,64 @@
             <div class="text-muted small">for {{ p.duration_days }} days</div>
           </div>
 
+          {% if code == "basic" %}
             <ul class="text-muted small mb-3 ps-3">
-              <li>Access to questions</li>
-              <li>Materials & flashcards</li>
-              <li>AI limits based on plan</li>
+              <li>Access to <strong>QBank</strong> questions only</li>
+              <li>AI daily limit: <strong>10</strong></li>
+              <li>Create personal flashcards</li>
+              <li>No Exam Review, TBL, Flipped, or Old Exams</li>
+              <li>No admin flashcards</li>
             </ul>
 
+          {% elif code == "premium" %}
+            <ul class="text-muted small mb-3 ps-3">
+              <li>Access to <strong>QBank</strong> and <strong>Exam Review</strong></li>
+              <li>AI daily limit: <strong>30</strong></li>
+              <li>View admin flashcards + create personal ones</li>
+              <li>No TBL, Flipped, or Old Exams</li>
+              <li>Full access to lesson content</li>
+            </ul>
+
+          {% elif code == "advanced" %}
+            <ul class="text-muted small mb-3 ps-3">
+              <li>Access to <strong>all question sources</strong>:
+                QBank, Exam Review, TBL, Flipped, Old Exams
+              </li>
+              <li>AI daily limit: <strong>100</strong></li>
+              <li>View admin + personal flashcards</li>
+              <li>Full lesson content access</li>
+              <li>Everything in previous plans included</li>
+            </ul>
+
+          {% else %}
+            <ul class="text-muted small mb-3 ps-3">
+              <li>No question access</li>
+              <li>No AI usage</li>
+              <li>No flashcards or materials</li>
+            </ul>
+          {% endif %}
+
           <div class="mt-auto">
-            {# لو الخطة الحالية Advanced → مفيش Upgrade #}
             {% if current_plan == "advanced" %}
-              {% if current_plan == code %}
-                <button class="btn btn-success btn-sm w-100" disabled>You're on this plan</button>
-              {% else %}
-                <button class="btn btn-light btn-sm w-100" disabled>Higher plan active</button>
-              {% endif %}
+              <button class="btn btn-success btn-sm w-100" disabled>
+                You're on the highest plan
+              </button>
+            {% elif current_plan == code %}
+              <button class="btn btn-success btn-sm w-100" disabled>
+                You're on this plan
+              </button>
             {% else %}
-              {# لو ده هو البلان الحالية → نعطّل الزر #}
-              {% if current_plan == code %}
-                <button class="btn btn-success btn-sm w-100" disabled>You're on this plan</button>
-              {% else %}
-                <form
-                  hx-post="{% url 'web_plans_purchase' %}"
-                  hx-target="#plans-messages"
-                  hx-swap="innerHTML"
-                  class="d-flex gap-2">
-                  <input type="hidden" name="plan_code" value="{{ p.code }}">
-                  <input type="text" name="coupon" class="form-control form-control-sm" placeholder="Coupon (optional)">
-                  <button class="btn btn-primary btn-sm" type="submit">
-                    <span class="spinner-border spinner-border-sm me-1 htmx-indicator" role="status"></span>
-                    Choose
-                  </button>
-                </form>
-              {% endif %}
+              <a href="{% url 'web_payment_page' %}?plan={{ p.code }}" class="btn btn-primary btn-sm w-100">
+                Pay via Instapay
+              </a>
             {% endif %}
           </div>
         </div>
       </div>
       {% endwith %}
-    {% empty %}
-      <div class="col-12">
-        <div class="alert alert-secondary">No active plans.</div>
-      </div>
     {% endfor %}
   </div>
 
-  {# لو مفيش اشتراك نشط نعرض زرار Start trial تحت #}
   {% if not is_active %}
     <div class="mt-4">
       <form

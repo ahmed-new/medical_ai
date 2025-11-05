@@ -85,9 +85,11 @@ class AskApiV1(APIView):
 
 
 
+import json
+
 class AskApiV1Simple(APIView):
     authentication_classes = [JWTAuthentication]
-    permission_classes = [permissions.IsAuthenticated , SingleDeviceOnly]
+    permission_classes = [permissions.IsAuthenticated, SingleDeviceOnly]
 
     def post(self, request):
         if not settings.GOOGLE_API_KEY:
@@ -98,21 +100,37 @@ class AskApiV1Simple(APIView):
         if not q:
             return Response({"error": {"code": "bad_request", "message": "Missing field 'q'"}}, status=400)
 
-        # اشتراك فعّال؟
+        # ✅ history (اختياري)
+        raw_history = body.get("history")
+
+        if isinstance(raw_history, str):
+            # جاية كسلسلة JSON
+            try:
+                history = json.loads(raw_history)
+            except Exception:
+                history = []
+        elif isinstance(raw_history, list):
+            # جاية list جاهزة من web_ai_ask
+            history = raw_history
+        else:
+            history = []
+
+        history = history[-10:]  # آخر 10 رسائل بس
+        print(">>> received history:", history)
+
+        # باقى الكود كما هو...
         if not request.user.is_active_subscription:
             return Response({"error": {"code": "inactive", "message": "Subscription inactive"}}, status=402)
 
-        # ✅ حدّ اليوم
         ok, limit, used = can_consume_ai(request.user)
         if not ok:
             return Response({"error": {"code": "ai_limit", "message": "Daily AI limit reached", "limit": limit, "used": used}}, status=429)
 
         try:
             display_name = getattr(request.user, "first_name", "") or getattr(request.user, "username", "") or "Student"
-            # print(display_name)
-            data = api_ask(q, k=10, probes=10, max_chars=4000 ,student_name=display_name) 
+            data = api_ask(q, k=10, probes=10, max_chars=4000, student_name=display_name, history=history)
             consume_ai(request.user)
-            record_activity(request.user) # قيم افتراضية ثابتة داخليًا
+            record_activity(request.user)
             return Response({"answer": data.get("answer", "")}, status=200)
         except Exception as e:
             return Response({"error": {"code": "server_error", "message": str(e)}}, status=500)

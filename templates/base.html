@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="ar" dir="ltr">
+{% load static %}
 <head>
   <meta charset="utf-8">
   <title>{% block title %}منصّة الدراسة{% endblock %}</title>
@@ -17,6 +18,11 @@
     .app-nav .nav-link.active{ color:var(--brand); }
     .page-title{ font-size:1.1rem; font-weight:700; }
     .card-soft{ background:var(--card); border:1px solid #eee; border-radius:14px; }
+    .app-brand-logo{
+      height: 60px;      /* جرّب 32–40px وشوف الأنسب */
+      width: auto;
+      display: block;
+    }
 
     /* Floating Study button (bigger) */
     .fab-pomo {
@@ -28,11 +34,124 @@
     .pomo-hud { position: fixed; right: 16px; bottom: 88px; z-index: 1040; min-width: 240px; }
     .pomo-time { font-size: 1.4rem; letter-spacing: 1px; }
 
+    .htmx-indicator { display: none; }
+    .htmx-request .htmx-indicator,
+    .htmx-request.htmx-indicator { display: inline-block; }
+
+        /* ===== AI Chat widget ===== */
+    /* ===== AI Chat widget ===== */
+    #ai-chat-widget{
+      position: fixed;
+      left: 18px;          /* بدل right */
+      bottom: 18px;
+      z-index: 1080;
+      font-size: 14px;
+    }
+
+    .ai-chat-btn{
+      border-radius: 999px;
+      padding: 10px 18px;  /* زرار أكبر شوية */
+      border: none;
+      background: #0d6efd;
+      color:#fff;
+      box-shadow: 0 8px 24px rgba(15,23,42,.35);
+      display:flex;
+      align-items:center;
+      gap:8px;
+      font-weight:600;
+      font-size: 15px;
+    }
+
+    .ai-chat-panel{
+      position: absolute;
+      left: 0;             /* تفتح فوق الزرار ناحية الشمال */
+      bottom: 52px;
+      /* تاخد تقريبًا تلت الشاشة في الديسكتوب، مع حد أقصى محترم */
+      width: min(520px, 34vw);
+      height: min(80vh, 640px);  /* بانل طويلة وواضحة */
+      background: #ffffff;
+      border-radius: 18px;
+      box-shadow: 0 16px 40px rgba(15,23,42,.45);
+      display:flex;
+      flex-direction:column;
+      overflow:hidden;
+    }
+
+    .ai-chat-header{
+      padding: 12px 16px;
+      border-bottom:1px solid rgba(148,163,184,.4);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .ai-chat-messages{
+      padding: 12px 16px;
+      overflow-y:auto;
+      /* نخليها تملى المساحة المتبقية بدل max-height ثابت */
+      flex: 1;
+      max-height:none;
+      background:#f8fafc;
+      display:flex;
+      flex-direction:column;
+      gap: 4px;
+      font-size: 15px;        /* أوضح للقراءة */
+    }
+
+    .ai-msg{
+      padding:8px 12px;
+      border-radius:12px;
+      margin-bottom:4px;
+      white-space:pre-wrap;
+      line-height: 1.5;
+    }
+
+    .ai-msg-bot{
+      background:#e5edff;
+      align-self:flex-start;
+    }
+
+    .ai-msg-user{
+      background:#0d6efd;
+      color:#fff;
+      align-self:flex-end;
+    }
+
+    .ai-chat-form{
+      padding: 10px;
+      border-top:1px solid rgba(148,163,184,.4);
+      display:flex;
+      gap:8px;
+      background:#fff;
+    }
+
+    .ai-chat-btn .ai-chat-icon{
+      width: 26px;
+      height: 26px;
+      object-fit: contain;
+      display:block;
+    }
+
+    /* موبايل: نخليها شبه full-screen علشان الطالب يكتب براحة */
+    @media (max-width: 576px){
+      .ai-chat-panel{
+        width: 100vw;
+        left: 0;
+        bottom: 0;
+        height: 88vh;                 /* تقريبًا الشاشة كلها */
+        border-radius: 18px 18px 0 0; /* من فوق بس */
+      }
+
+      .ai-chat-messages{
+        flex: 1;
+        max-height:none;
+      }
+    }
 
 
-  .htmx-indicator { display: none; }
-  .htmx-request .htmx-indicator,
-  .htmx-request.htmx-indicator { display: inline-block; }
   </style>
 
   {% block extra_head %}{% endblock %}
@@ -62,6 +181,9 @@
 
 {% block extra_js %}{% endblock %}
 
+
+
+{% if request.session.access %}
 <!-- Study Modal -->
 <div class="modal fade" id="pomodoroModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
@@ -137,6 +259,49 @@
   </div>
 </div>
 
+<!-- ===== AI Chat floating widget ===== -->
+<div id="ai-chat-widget">
+  <!-- الزرار العائم -->
+ <button type="button" id="aiChatToggle" class="ai-chat-btn">
+  <img src="{% static 'logos/ai.png' %}" alt="AI" class="ai-chat-icon">
+  <span>Ask AI</span>
+</button>
+
+
+
+  <!-- البانل -->
+  <div id="ai-chat-panel" class="ai-chat-panel d-none">
+    <div class="ai-chat-header">
+      <div>
+        <div class="fw-semibold">Axonelix AI tutor</div>
+        <div class="small text-muted">Ask about your materials & questions</div>
+      </div>
+      <button type="button" class="btn-close btn-sm" id="ai-chat-close" aria-label="Close"></button>
+    </div>
+
+    <div id="ai-chat-messages" class="ai-chat-messages">
+      <div class="ai-msg ai-msg-bot">
+        👋 Hi! Ask me anything about your medical materials or questions.
+      </div>
+    </div>
+
+    <form id="ai-chat-form" class="ai-chat-form">
+      {% csrf_token %}
+      <input
+        id="ai-chat-input"
+        type="text"
+        class="form-control form-control-sm"
+        placeholder="Type your question and press Enter..."
+        autocomplete="off"
+      >
+      <button class="btn btn-primary btn-sm" type="submit" id="ai-chat-send">
+        <span class="spinner-border spinner-border-sm d-none" id="ai-chat-spin" role="status"></span>
+        <span id="ai-chat-send-label">Send</span>
+      </button>
+    </form>
+  </div>
+</div>
+{% endif %}
 <!-- JS: Bootstrap Bundle + HTMX -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://unpkg.com/htmx.org@1.9.12"></script>
@@ -409,3 +574,217 @@
     }
   })();
 </script>
+
+<!-- ===== AI Chat JS ===== -->
+<script>
+  (function(){
+    const toggleBtn = document.getElementById("aiChatToggle");
+    const panel     = document.getElementById("ai-chat-panel");
+    const closeBtn  = document.getElementById("ai-chat-close");
+    const form      = document.getElementById("ai-chat-form");
+    const input     = document.getElementById("ai-chat-input");
+    const msgsBox   = document.getElementById("ai-chat-messages");
+    const sendBtn   = document.getElementById("ai-chat-send");
+    // موجودين بس مش بنستخدمهم كـ indicator دلوقتى
+    const spin      = document.getElementById("ai-chat-spin");
+    const sendLabel = document.getElementById("ai-chat-send-label");
+
+    // ====== تخزين محلى للهستوري ======
+    const AI_STORAGE_KEY = "ax_ai_chat_history_v1";
+    let chatHistory = [];
+
+    function saveChatHistory(){
+      try {
+        localStorage.setItem(AI_STORAGE_KEY, JSON.stringify(chatHistory));
+      } catch(e) {
+        // ignore
+      }
+    }
+
+    function loadChatHistory(){
+      try {
+        const raw = localStorage.getItem(AI_STORAGE_KEY);
+        if (!raw) return;
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr)){
+          chatHistory = arr.slice(-10);
+        }
+      } catch(e) {
+        // ignore
+      }
+    }
+
+    // ====== فتح/غلق البانل ======
+    function openPanel(){
+      if (!panel) return;
+      panel.classList.remove("d-none");
+      setTimeout(()=> input && input.focus(), 50);
+    }
+    function closePanel(){
+      if (!panel) return;
+      panel.classList.add("d-none");
+    }
+
+    toggleBtn?.addEventListener("click", function(){
+      if (!panel) return;
+      if (panel.classList.contains("d-none")) openPanel();
+      else closePanel();
+    });
+    closeBtn?.addEventListener("click", closePanel);
+
+    // ====== إضافة رسالة في الـ UI + تحديث history ======
+    function appendMsg(text, who, opts){
+      opts = opts || {};
+      const div = document.createElement("div");
+      div.className = "ai-msg " + (who === "user" ? "ai-msg-user" : "ai-msg-bot");
+      if (opts.thinking){
+        div.dataset.thinking = "1";
+      }
+      div.textContent = text;
+      msgsBox.appendChild(div);
+      msgsBox.scrollTop = msgsBox.scrollHeight;
+
+      // ما نضيفش thinking / رسائل معينة للهستوري لو skipHistory=true
+      if (!opts.skipHistory && !opts.thinking){
+        chatHistory.push({
+          role: (who === "user" ? "user" : "assistant"),
+          content: text
+        });
+        if (chatHistory.length > 10){
+          chatHistory = chatHistory.slice(-10);
+        }
+        saveChatHistory();
+      }
+      return div;
+    }
+
+    // ====== تأثير الكتابة البطيئة ======
+    function typeOut(text, el, speed){
+      return new Promise(resolve => {
+        let i = 0;
+        el.textContent = "";
+        function step(){
+          if (i >= text.length){
+            return resolve();
+          }
+          el.textContent += text[i];
+          i++;
+          if (msgsBox){
+            msgsBox.scrollTop = msgsBox.scrollHeight;
+          }
+          setTimeout(step, speed);
+        }
+        step();
+      });
+    }
+
+    // ====== إرسال السؤال للباك + thinking bubble ======
+    async function sendQuestion(q){
+      // bubble "Thinking..." داخل الشات
+      const thinkingDiv = appendMsg("Thinking…", "bot", {
+        thinking: true,
+        skipHistory: true
+      });
+
+      try{
+        // DEBUG بسيط لو حابب تتابع
+        // console.log("Sending history to backend:", chatHistory);
+
+        const res = await fetch("{% url 'web_ai_ask' %}", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+            "X-CSRFToken": getCookie("csrftoken"),
+          },
+          body: new URLSearchParams({
+            q: q,
+            history: JSON.stringify(chatHistory)   // تمرير آخر 10 رسائل للباك
+          })
+        });
+
+        const js = await res.json();
+        let answerText;
+        if (js.answer){
+          answerText = js.answer;
+        } else if (js.error){
+          answerText = js.error;
+        } else {
+          answerText = "Something went wrong.";
+        }
+
+        thinkingDiv.dataset.thinking = "0";
+        await typeOut(answerText, thinkingDiv, 15);
+
+        // ضيف الرد الحقيقي للهستوري بعد ما يخلص كتابة
+        chatHistory.push({ role: "assistant", content: answerText });
+        if (chatHistory.length > 10){
+          chatHistory = chatHistory.slice(-10);
+        }
+        saveChatHistory();
+
+      } catch(e){
+        const errText = "Network error. Please try again.";
+        thinkingDiv.dataset.thinking = "0";
+        await typeOut(errText, thinkingDiv, 15);
+
+        chatHistory.push({ role: "assistant", content: errText });
+        if (chatHistory.length > 10){
+          chatHistory = chatHistory.slice(-10);
+        }
+        saveChatHistory();
+
+      } finally {
+        if (sendBtn) sendBtn.disabled = false;
+        if (input){
+          input.disabled = false;
+          input.focus();
+        }
+        if (spin) spin.classList.add("d-none");
+        if (sendLabel) sendLabel.textContent = "Send";
+      }
+    }
+
+    // ====== Submit الفورم ======
+    form?.addEventListener("submit", function(e){
+      e.preventDefault();
+      const q = (input.value || "").trim();
+      if (!q) return;
+
+      appendMsg(q, "user");
+      input.value = "";
+
+      if (sendBtn) sendBtn.disabled = true;
+      if (input)  input.disabled  = true;
+
+      if (panel && panel.classList.contains("d-none")){
+        openPanel();
+      }
+
+      sendQuestion(q);
+    });
+
+    // ====== أول تحميل: رجّع الهستوري من localStorage أو استخدم رسالة الترحيب ======
+    loadChatHistory();
+
+    if (msgsBox && chatHistory.length){
+      // فيه هستوري محفوظ → اعرضه مكان الرسالة الافتراضية
+      msgsBox.innerHTML = "";
+      chatHistory.forEach(turn => {
+        const who = (turn.role === "user" ? "user" : "assistant");
+        appendMsg(turn.content, who, { skipHistory: true });
+      });
+    } else if (msgsBox){
+      // مفيش هستوري → خُد رسالة الترحيب الافتراضية واحفظها كبداية
+      const initial = msgsBox.querySelector(".ai-msg-bot");
+      if (initial && initial.textContent.trim()){
+        chatHistory.push({ role: "assistant", content: initial.textContent.trim() });
+        saveChatHistory();
+      }
+    }
+  })();
+</script>
+
+
+
+</body>
+</html>

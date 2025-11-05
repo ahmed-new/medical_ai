@@ -7,8 +7,13 @@ from django.http import HttpResponse,JsonResponse
 from django.views.decorators.http import require_POST,require_GET,require_http_methods
 from django.utils import timezone
 from datetime import datetime
+import json
 
 
+
+
+def landing_page(request):
+    return render(request,"landing_page.html")
 
 API = settings.BASE_API_URL
 
@@ -119,7 +124,7 @@ def home(request):
     if not _require_auth(request):
         return redirect("web_login")
 
-    # /auth/me
+    # ---- 1) بياناتى (اسم + الخطة) من /auth/me/ زى ما هى ----
     me = {}
     try:
         r = requests.get(f"{API}/auth/me/", headers=_headers(request), timeout=8)
@@ -130,59 +135,37 @@ def home(request):
     except Exception:
         pass
 
-    # /streak/message
+    # ---- 2) قيم افتراضية للداشبورد ----
     streak = {"current_streak": 0, "message": "—"}
-    try:
-        r = requests.get(f"{API}/v1/edu/streak/message/", headers=_headers(request), timeout=8)
-        if r.status_code == 200:
-            streak = r.json()
-    except Exception:
-        pass
-
-    # NEW: KPIs from your endpoints
     study_today_min = 0
     study_month_min = 0
     trees_today = 0
     solved_qs = 0
     accuracy = 0.0
     fav_lessons_total = 0
-    flashcards_reviewed = 0  # لسه placeholder
+    flashcards_reviewed = 0
+    last_lesson = None
 
-    # Study sessions (today)
+    # ---- 3) نداء واحد للـ dashboard ----
     try:
-        r = requests.get(f"{API}/v1/track/sessions/?period=today", headers=_headers(request), timeout=8)
+        r = requests.get(
+            f"{API}/v1/edu/dashboard/home/",
+            headers=_headers(request),
+            timeout=8,
+        )
         if r.status_code == 200:
             js = r.json()
-            study_today_min = js.get("total_minutes", 0) or 0
-            trees_today = study_today_min // 25  # 25 min = 1 tree
-    except Exception:
-        pass
-
-    # Study sessions (month)
-    try:
-        r = requests.get(f"{API}/v1/track/sessions/?period=month", headers=_headers(request), timeout=8)
-        if r.status_code == 200:
-            js = r.json()
-            study_month_min = js.get("total_minutes", 0) or 0
-    except Exception:
-        pass
-
-    # Question attempts stats (all-time)
-    try:
-        r = requests.get(f"{API}/v1/edu/questions/attempts/stats/?period=all", headers=_headers(request), timeout=8)
-        if r.status_code == 200:
-            js = r.json()
-            solved_qs = js.get("total", 0) or 0
-            accuracy = js.get("accuracy", 0.0) or 0.0
-    except Exception:
-        pass
-
-    # Favorites lessons total (نستخدم total من اللست)
-    try:
-        r = requests.get(f"{API}/v1/edu/favorites/lessons/?limit=1&offset=0", headers=_headers(request), timeout=8)
-        if r.status_code == 200:
-            js = r.json()
-            fav_lessons_total = js.get("total", 0) or 0
+            streak = js.get("streak", streak)
+            study_today_min = js.get("study_today_min", study_today_min)
+            study_month_min = js.get("study_month_min", study_month_min)
+            trees_today = js.get("trees_today", trees_today)
+            solved_qs = js.get("solved_qs", solved_qs)
+            accuracy = js.get("accuracy", accuracy)
+            fav_lessons_total = js.get("fav_lessons_total", fav_lessons_total)
+            flashcards_reviewed = js.get("flashcards_reviewed", flashcards_reviewed)
+            last_lesson = js.get("last_lesson", last_lesson)
+        elif r.status_code == 401:
+            return redirect("web_login")
     except Exception:
         pass
 
@@ -196,8 +179,109 @@ def home(request):
         "accuracy": accuracy,
         "fav_lessons_total": fav_lessons_total,
         "flashcards_reviewed": flashcards_reviewed,
+        "last_lesson": last_lesson,
     }
     return render(request, "pages/home.html", ctx)
+
+
+
+
+
+
+
+def web_favorite_lessons(request):
+    """
+    صفحة تعرض دروس الـ Favorites للطالب مع Pagination بسيط.
+    تستخدم: GET /api/v1/edu/favorites/lessons/
+    """
+    if not _require_auth(request):
+        return redirect("web_login")
+
+    page_size = 20
+    try:
+        page = max(1, int(request.GET.get("page", 1)))
+    except Exception:
+        page = 1
+    offset = (page - 1) * page_size
+
+    total = 0
+    items = []
+
+    try:
+        r = requests.get(
+            f"{API}/v1/edu/favorites/lessons/?limit={page_size}&offset={offset}",
+            headers=_headers(request),
+            timeout=8,
+        )
+        if r.status_code == 200:
+            js = r.json() or {}
+            total = js.get("total", 0) or 0
+            items = js.get("items", []) or []
+    except Exception:
+        items = []
+        total = 0
+
+    has_next = offset + len(items) < total
+    has_prev = page > 1
+
+    ctx = {
+        "items": items,          # كل عنصر = FavoriteLessonSerializer
+        "page": page,
+        "has_next": has_next,
+        "has_prev": has_prev,
+        "next_page": page + 1,
+        "prev_page": page - 1,
+        "total": total,
+    }
+    return render(request, "pages/materials_favorites.html", ctx)
+
+
+
+
+def web_done_lessons(request):
+    if not _require_auth(request):
+        return redirect("web_login")
+
+    # 1) هات IDs الدروس اللى متعلِّم عليها done
+    ids = []
+    try:
+        r = requests.get(
+            f"{API}/v1/edu/lessons/progress/ids/",
+            headers=_headers(request),
+            timeout=8,
+        )
+        if r.status_code == 200:
+            js = r.json() or {}
+            ids = js.get("ids", []) or []
+    except Exception:
+        ids = []
+
+    lessons = []
+
+    # 2) لو فيه IDs هات تفاصيل كل درس
+    for lid in ids:
+        try:
+            lr = requests.get(
+                f"{API}/v1/edu/lessons/{lid}/",
+                headers=_headers(request),
+                timeout=8,
+            )
+            if lr.status_code == 200:
+                lessons.append(lr.json())
+        except Exception:
+            continue
+
+    ctx = {
+        "lessons": lessons,
+        "total": len(lessons),
+    }
+    return render(request, "pages/materials_done.html", ctx)
+
+
+
+
+
+
 
 
 
@@ -300,54 +384,43 @@ def materials_home(request):
     chapters, lessons = [], []
     mods_by_sem, subs_by_mod = {}, {}
     error = None
+    favorite_ids = []
+    done_ids = []
 
-    # 0) User year (optional for display)
-    try:
-        r = requests.get(f"{API}/v1/edu/years/me/", headers=headers, timeout=8)
-        if r.status_code == 200:
-            year_me = r.json() or {}
-        elif r.status_code == 401:
-            return redirect("web_login")
-    except Exception:
-        pass
+    # ===== 1) نبني URL واحد للـ API الجديدة =====
+    params = []
+    if subject_id:
+        params.append(f"subject={subject_id}")
+    if chapter_id:
+        params.append(f"chapter={chapter_id}")
+    if part_type in ("theoretical", "practical"):
+        params.append(f"part_type={part_type}")
+    qs = "&".join(params)
 
-    # 1) Semesters
-    try:
-        r = requests.get(f"{API}/v1/edu/semesters/", headers=headers, timeout=8)
-        if r.status_code == 200:
-            semesters = r.json() or []
-        elif r.status_code == 401:
-            return redirect("web_login")
-        else:
-            error = f"Semesters error: {r.status_code}"
-    except Exception:
-        error = "Cannot reach API for semesters."
+    url = f"{API}/v1/edu/materials/home/"
+    if qs:
+        url = f"{url}?{qs}"
 
-    # 2) Modules
     try:
-        r = requests.get(f"{API}/v1/edu/modules/", headers=headers, timeout=8)
+        r = requests.get(url, headers=headers, timeout=8)
         if r.status_code == 200:
-            modules = r.json() or []
-        elif r.status_code == 401:
-            return redirect("web_login")
-        else:
-            error = f"Modules error: {r.status_code}"
-    except Exception:
-        error = "Cannot reach API for modules."
-
-    # 3) Subjects
-    try:
-        r = requests.get(f"{API}/v1/edu/subjects/", headers=headers, timeout=8)
-        if r.status_code == 200:
-            subjects = r.json() or []
+            js = r.json() or {}
+            year_me   = js.get("year_me") or {}
+            semesters = js.get("semesters") or []
+            modules   = js.get("modules") or []
+            subjects  = js.get("subjects") or []
+            chapters  = js.get("chapters") or []
+            lessons   = js.get("lessons") or []
+            favorite_ids = js.get("favorite_ids") or []
+            done_ids     = js.get("done_ids") or []
         elif r.status_code == 401:
             return redirect("web_login")
         else:
-            error = f"Subjects error: {r.status_code}"
+            error = f"Materials error: {r.status_code}"
     except Exception:
-        error = "Cannot reach API for subjects."
+        error = "Cannot reach API for materials."
 
-    # 4) Build maps for the tree: mods_by_sem / subs_by_mod
+    # ===== 2) Build maps for the tree: mods_by_sem / subs_by_mod =====
     for m in modules:
         sem_id = m.get("semester")
         if sem_id:
@@ -358,50 +431,21 @@ def materials_home(request):
         if mod_id:
             subs_by_mod.setdefault(mod_id, []).append(s)
 
-    # Sort by (order, id) when available
+    # Sort by (order, id)
     semesters.sort(key=lambda x: (x.get("order", 0), x.get("id", 0)))
     for arr in mods_by_sem.values():
         arr.sort(key=lambda x: (x.get("order", 0), x.get("id", 0)))
     for arr in subs_by_mod.values():
         arr.sort(key=lambda x: (x.get("order", 0), x.get("id", 0)))
+    if chapters:
+        chapters.sort(key=lambda x: (x.get("order", 0), x.get("id", 0)))
+    if lessons:
+        lessons.sort(key=lambda x: (x.get("order", 0), x.get("id", 0)))
 
-    # 5) If a subject is selected: fetch Chapters first.
-    #    DO NOT fetch lessons until a chapter is chosen.
-    if subject_id:
-        # Chapters
-        try:
-            rc = requests.get(
-                f"{API}/v1/edu/chapters/?subject_id={subject_id}",
-                headers=headers, timeout=8
-            )
-            if rc.status_code == 200:
-                chapters = rc.json() or []
-                chapters.sort(key=lambda x: (x.get("order", 0), x.get("id", 0)))
-            elif rc.status_code == 401:
-                return redirect("web_login")
-        except Exception:
-            pass
-
-        # Lessons → only when a chapter is selected
-        lessons = []
-        if chapter_id:
-            try:
-                url = f"{API}/v1/edu/lessons/?subject_id={subject_id}&chapter_id={chapter_id}"
-                if part_type in ("theoretical", "practical"):
-                    url += f"&part_type={part_type}"
-                rl = requests.get(url, headers=headers, timeout=8)
-                if rl.status_code == 200:
-                    lessons = rl.json() or []
-                    lessons.sort(key=lambda x: (x.get("order", 0), x.get("id", 0)))
-                elif rl.status_code == 401:
-                    return redirect("web_login")
-            except Exception:
-                pass
-
-    # 6) View mode
+    # ===== 3) View mode =====
     mode = "subject_detail" if subject_id else "tree"
 
-    # Selected subject name
+    # Selected subject name (نفس منطقك القديم)
     subject_name = None
     if subject_id and subjects:
         try:
@@ -412,34 +456,15 @@ def materials_home(request):
                     break
         except ValueError:
             subject_name = "Subject"
-    favorite_ids = []
-    try:
-        rf = requests.get(f"{API}/v1/edu/favorites/lessons/ids/", headers=headers, timeout=8)
-        if rf.status_code == 200:
-            favorite_ids = (rf.json() or {}).get("ids", []) or []
-    except Exception:
-        pass
-    
-    
-    done_ids = []
-    if subject_id:
-        try:
-            u = f"{API}/v1/edu/lessons/progress/ids/?subject_id={subject_id}"
-            rr = requests.get(u, headers=headers, timeout=8)
-            if rr.status_code == 200:
-                done_ids = rr.json().get("ids", []) or []
-        except Exception:
-            pass
-        
+
     ctx = {
         "mode": mode,
         "year_me": year_me,
         "semesters": semesters,
         "modules": modules,
         "subjects": subjects,
-        "mods_by_sem": mods_by_sem,   # { semester_id: [modules...] }
-        "subs_by_mod": subs_by_mod,   # { module_id: [subjects...] }
-        # when a subject is selected:
+        "mods_by_sem": mods_by_sem,
+        "subs_by_mod": subs_by_mod,
         "chapters": chapters,
         "lessons": lessons,
         "favorite_ids": set(favorite_ids),
@@ -451,6 +476,7 @@ def materials_home(request):
         "error": error,
     }
     return render(request, "pages/materials_home.html", ctx)
+
 
 
 
@@ -768,16 +794,83 @@ def web_flashcards_create(request, lesson_id: int):
     return HttpResponse(card_html, status=201)
 
 
-# حذف فلاش كارد (زرار Delete داخل الكارت)
 @require_http_methods(["DELETE"])
 def web_flashcard_delete(request, pk: int):
     try:
-        r = requests.delete(f"{API}/v1/edu/flashcards/{pk}/", headers=_headers(request), timeout=8)
+        r = requests.delete(
+            f"{API}/v1/edu/flashcards/{pk}/",
+            headers=_headers(request),
+            timeout=8,
+        )
         if r.status_code in (200, 204):
             return HttpResponse("")  # htmx hx-swap="outerHTML" هيشيله
     except Exception:
         pass
     return HttpResponse('<div class="alert alert-danger">Delete failed.</div>', status=400)
+
+
+
+@require_POST
+def web_flashcard_update(request, pk: int):
+    if not _require_auth(request):
+        return HttpResponse("Auth", status=401)
+
+    question = (request.POST.get("question") or "").strip()
+    answer   = (request.POST.get("answer") or "").strip()
+    order    = request.POST.get("order") or "1"
+
+    try:
+        order_int = int(order)
+        if order_int < 1:
+            order_int = 1
+    except ValueError:
+        order_int = 1
+
+    payload = {
+        "question": question,
+        "answer": answer,
+        "order": order_int,
+    }
+
+    # PUT على الـ API
+    try:
+        r = requests.put(
+            f"{API}/v1/edu/flashcards/{pk}/",
+            json=payload,
+            headers=_headers(request),
+            timeout=8,
+        )
+    except Exception:
+        return HttpResponse(
+            '<div class="alert alert-danger small mb-0">Network error.</div>',
+            status=200,
+        )
+
+    if r.status_code not in (200, 201):
+        return HttpResponse(
+            '<div class="alert alert-danger small mb-0">Update failed.</div>',
+            status=200,
+        )
+
+    # نعيد رسم الكارت من جديد بالقيم اللى اليوزر بعته
+    fc = {
+        "id": pk,
+        "owner_type": "user",
+        "question": question,
+        "answer": answer,
+        "order": order_int,
+    }
+    html = render_to_string(
+        "components/flashcards/_my_flashcard_item.html",
+        {"fc": fc},
+        request=request,
+    )
+    return HttpResponse(html, status=200)
+
+
+
+
+
 
 
 
@@ -1568,3 +1661,502 @@ def web_plans_start_trial(request):
         return HttpResponse(f"<div class='alert alert-danger mb-2'>{msg}</div>", status=400)
 
     return HttpResponse("<div class='alert alert-success mb-2'>Free trial activated.</div>", status=200)
+
+
+
+
+
+
+
+INSTAPAY_LINK = "https://ipn.eg/S/mohammadalqady/instapay/8fREG1"
+
+def web_payment_page(request):
+    if not _require_auth(request):
+        return redirect("web_login")
+
+    plan_code = (request.GET.get("plan") or "").strip()
+    if not plan_code:
+        return HttpResponse("plan is required", status=400)
+
+    # هات الباقات من API
+    try:
+        r = requests.get(f"{API}/plans/", timeout=8)
+    except Exception:
+        return HttpResponse("Network error", status=502)
+
+    if r.status_code != 200:
+        return HttpResponse("Cannot load plans", status=502)
+
+    plans_data = (r.json() or {}).get("plans", []) or []
+    plan = None
+    for p in plans_data:
+        if (p.get("code") or "").lower() == plan_code.lower():
+            plan = p
+            break
+
+    if not plan:
+        return HttpResponse("Plan not found", status=404)
+
+    ctx = {
+        "plan": plan,          # dict: {code, name, price_egp, duration_days}
+        "payment": None,       # لا يوجد Payment لسه
+        "submitted": False,
+        "instapay_link": INSTAPAY_LINK,
+    }
+    return render(request, "pages/payment_instapay.html", ctx)
+
+
+
+
+
+
+
+@require_POST
+def web_payment_confirm(request):
+    if not _require_auth(request):
+        return redirect("web_login")
+
+    plan_code  = (request.POST.get("plan_code") or "").strip()
+    notes_code = (request.POST.get("notes_code") or "").strip()
+    reference_no = (request.POST.get("reference_no") or "").strip()
+    user_note    = (request.POST.get("note") or "").strip()
+    final_price  = (request.POST.get("final_price") or "").strip()
+
+    if not plan_code or not notes_code:
+        messages.error(request, "Invalid payment data. Please refresh the page and try again.")
+        return redirect(request.META.get("HTTP_REFERER", "/"))
+
+    payload = {
+        "plan_code": plan_code,
+        "notes_code": notes_code,
+        "reference_no": reference_no,
+        "user_note": user_note,
+        "final_price": final_price,   # 👈 المهم
+    }
+
+    try:
+        r = requests.post(
+            f"{API}/payments/create/",
+            json=payload,
+            headers=_headers(request),
+            timeout=10,
+        )
+    except Exception:
+        messages.error(request, "Network error, please try again.")
+        return redirect(request.META.get("HTTP_REFERER", "/"))
+
+    if r.status_code not in (200, 201):
+        try:
+            err = r.json()
+        except Exception:
+            err = {"error": "Unknown error"}
+        messages.error(request, f"Cannot create payment: {err}")
+        return redirect(request.META.get("HTTP_REFERER", "/"))
+
+    payment = r.json() or {}
+
+    # رجّع نفس صفحة الدفع لكن مع الـ payment و submitted=True → نخفي الفورم ونظهر رسالة pending
+    ctx = {
+    "plan": {
+        "code": payment.get("plan_code"),
+        "name": payment.get("plan"),
+        "price_egp": payment.get("final_price"),  # 👈 خلى السعر هنا هو النهائى
+    },
+    "payment": payment,
+    "submitted": True,
+    "instapay_link": payment.get("instapay_link") or INSTAPAY_LINK,
+}
+
+    return render(request, "pages/payment_instapay.html", ctx)
+
+
+
+
+
+def web_coupon_validate(request):
+    if not _require_auth(request):
+        return JsonResponse({"ok": False, "message": "Auth required."}, status=401)
+
+    code = (request.GET.get("code") or "").strip()
+    plan_code = (request.GET.get("plan_code") or "").strip()
+
+    if not code:
+        return JsonResponse({"ok": False, "message": "Please enter a coupon code."}, status=200)
+
+    try:
+        r = requests.get(
+            f"{API}/coupons/validate/",
+            params={"code": code, "plan_code": plan_code},
+            headers=_headers(request),
+            timeout=8,
+        )
+    except Exception:
+        return JsonResponse({"ok": False, "message": "Network error while validating coupon."}, status=200)
+
+    if r.status_code != 200:
+        return JsonResponse({"ok": False, "message": "Cannot validate coupon right now."}, status=200)
+
+    data = r.json() or {}
+    return JsonResponse({
+        "ok": True,
+        "valid": data.get("valid", False),
+        "message": data.get("message"),
+        "percent": data.get("percent"),
+        "base_price": data.get("base_price"),
+        "discounted_price": data.get("discounted_price"),
+    }, status=200)
+    
+    
+    
+    
+    
+    
+    
+# Flashcards logic 
+
+def web_flashcards_browse(request):
+    if not _require_auth(request):
+        return redirect("web_login")
+
+    return render(request, "pages/flashcards_browse.html")
+
+@require_GET
+def fc_nav_semesters(request):
+    if not _require_auth(request):
+        return HttpResponse("Auth", status=401)
+
+    semesters = []
+    try:
+        r = requests.get(f"{API}/v1/edu/semesters/", headers=_headers(request), timeout=8)
+        if r.status_code == 200:
+            semesters = _json_list(r)
+    except Exception:
+        semesters = []
+
+    html = render(request, "components/flashcards/_nav_semesters.html", {
+        "semesters": semesters,
+    }).content.decode("utf-8")
+    return HttpResponse(html)
+
+
+@require_GET
+def fc_nav_modules(request):
+    if not _require_auth(request):
+        return HttpResponse("Auth", status=401)
+
+    sem_id = request.GET.get("semester_id")
+    modules = []
+    if sem_id:
+        try:
+            r = requests.get(
+                f"{API}/v1/edu/modules/?semester_id={sem_id}",
+                headers=_headers(request),
+                timeout=8,
+            )
+            if r.status_code == 200:
+                modules = _json_list(r)
+        except Exception:
+            modules = []
+
+    html = render(request, "components/flashcards/_nav_modules.html", {
+        "modules": modules,
+    }).content.decode("utf-8")
+    return HttpResponse(html)
+
+
+
+@require_GET
+def fc_panel_subjects(request):
+    if not _require_auth(request):
+        return HttpResponse("Auth", status=401)
+
+    module_id   = request.GET.get("module_id")
+    module_name = request.GET.get("module_name") or "Module"
+    subjects    = []
+
+    if module_id:
+        # المواد
+        try:
+            r = requests.get(
+                f"{API}/v1/edu/subjects/?module_id={module_id}",
+                headers=_headers(request),
+                timeout=8,
+            )
+            if r.status_code == 200:
+                subjects = _json_list(r)
+        except Exception:
+            subjects = []
+
+    html = render_to_string(
+        "components/flashcards/_panel_subjects.html",
+        {
+            "module_id": module_id,
+            "module_name": module_name,
+            "subjects": subjects,
+        },
+        request=request,
+    )
+    return HttpResponse(html)
+
+
+
+@require_GET
+def fc_panel_chapters(request):
+    if not _require_auth(request):
+        return HttpResponse("Auth", status=401)
+
+    subject_id   = request.GET.get("subject_id")
+    subject_name = request.GET.get("subject_name") or "Subject"
+    chapters     = []
+
+    if subject_id:
+        try:
+            r = requests.get(
+                f"{API}/v1/edu/chapters/?subject_id={subject_id}",
+                headers=_headers(request),
+                timeout=8,
+            )
+            if r.status_code == 200:
+                chapters = _json_list(r)
+        except Exception:
+            chapters = []
+
+    html = render_to_string(
+        "components/flashcards/_panel_chapters.html",
+        {
+            "subject_id": subject_id,
+            "subject_name": subject_name,
+            "chapters": chapters,
+        },
+        request=request,
+    )
+    return HttpResponse(html)
+
+
+
+
+
+
+
+@require_GET
+def fc_panel_lessons(request):
+    if not _require_auth(request):
+        return HttpResponse("Auth", status=401)
+
+    chapter_id   = request.GET.get("chapter_id")
+    subject_name = request.GET.get("subject_name") or ""
+    chapter_name = request.GET.get("chapter_name") or "Lessons"
+    lessons      = []
+
+    if chapter_id:
+        try:
+            rl = requests.get(
+                f"{API}/v1/edu/lessons/?chapter_id={chapter_id}",
+                headers=_headers(request),
+                timeout=8,
+            )
+            if rl.status_code == 200:
+                lessons = _json_list(rl)
+        except Exception:
+            lessons = []
+
+    html = render_to_string(
+        "components/flashcards/_panel_lessons.html",
+        {
+            "chapter_id": chapter_id,
+            "subject_name": subject_name,
+            "chapter_name": chapter_name,
+            "lessons": lessons,
+        },
+        request=request,
+    )
+    return HttpResponse(html)
+
+
+
+
+
+@require_GET
+def fc_panel_flashcards(request):
+    if not _require_auth(request):
+        return HttpResponse("Auth", status=401)
+
+    lesson_id = request.GET.get("lesson_id")
+    subject_id = request.GET.get("subject_id")  # اختياري عشان زرار الرجوع
+    if not lesson_id:
+        return HttpResponse("<div class='alert alert-secondary'>No lesson selected.</div>")
+
+    # اسم الدرس بدل Lesson ID
+    lesson_name = "Lesson"
+    try:
+        rl = requests.get(
+            f"{API}/v1/edu/lessons/{lesson_id}/",
+            headers=_headers(request),
+            timeout=8,
+        )
+        if rl.status_code == 200:
+            ld = rl.json() or {}
+            lesson_name = ld.get("title") or ld.get("name") or lesson_name
+    except Exception:
+        pass
+
+    # هات الفلاش كاردز من الـ API
+    admin_cards = []
+    my_cards = []
+
+    try:
+        r = requests.get(
+            f"{API}/v1/edu/flashcards/?lesson_id={lesson_id}",
+            headers=_headers(request),
+            timeout=10,
+        )
+        if r.status_code == 200:
+            items = r.json() or []
+            if isinstance(items, dict):
+                items = items.get("items", []) or []
+            for fc in items:
+                if fc.get("owner_type") == "admin":
+                    admin_cards.append(fc)
+                elif fc.get("owner_type") == "user":
+                    my_cards.append(fc)
+    except Exception:
+        return HttpResponse("<div class='alert alert-secondary'>Network error.</div>", status=200)
+
+    ctx = {
+        "lesson_id": lesson_id,
+        "lesson_name": lesson_name,
+        "subject_id": subject_id,
+        "admin_cards": admin_cards,
+        "my_cards": my_cards,
+    }
+    html = render_to_string("components/flashcards/_panel_flashcards.html", ctx, request=request)
+    return HttpResponse(html)
+
+
+
+
+
+
+
+@require_POST
+def web_flashcards_create_browse(request, lesson_id: int):
+    if not _require_auth(request):
+        return HttpResponse("Auth", status=401)
+
+    question = (request.POST.get("question") or "").strip()
+    answer   = (request.POST.get("answer") or "").strip()
+    order    = request.POST.get("order") or "1"
+
+    try:
+        order_int = int(order)
+        if order_int < 1:
+            order_int = 1
+    except ValueError:
+        order_int = 1
+
+    payload = {
+        "lesson": lesson_id,
+        "question": question,
+        "answer": answer,
+        "order": order_int,
+    }
+
+    # ننده على API الإنشاء
+    try:
+        r = requests.post(
+            f"{API}/v1/edu/flashcards/",
+            json=payload,
+            headers=_headers(request),
+            timeout=8,
+        )
+    except Exception:
+        return HttpResponse(
+            '<div class="alert alert-danger small mb-0">Network error.</div>',
+            status=200,
+        )
+
+    if r.status_code not in (200, 201):
+        return HttpResponse(
+            '<div class="alert alert-danger small mb-0">Could not add card.</div>',
+            status=200,
+        )
+
+    data = r.json() or {}
+    fc_id = data.get("id")
+
+    # نكوّن الديكت اللى التمبلت محتاجه
+    fc = {
+        "id": fc_id,
+        "owner_type": "user",
+        "question": question,
+        "answer": answer,
+        "order": order_int,
+    }
+
+    html = render_to_string(
+        "components/flashcards/_my_flashcard_item.html",
+        {"fc": fc},
+        request=request,
+    )
+    return HttpResponse(html, status=201)
+
+
+
+
+
+
+
+
+
+
+
+
+def web_ai_ask(request):
+    if request.method != "POST":
+        return JsonResponse({"ok": False, "error": "Method not allowed"}, status=405)
+
+    if not _require_auth(request):
+        return JsonResponse({"ok": False, "error": "Auth required"}, status=401)
+
+    q = (request.POST.get("q") or "").strip()
+    if not q:
+        return JsonResponse({"ok": False, "error": "Please type your question."}, status=200)
+
+    # استقبل history من الواجهة
+    history_raw = request.POST.get("history", "[]")
+    try:
+        history = json.loads(history_raw)
+    except Exception:
+        history = []
+
+    try:
+        r = requests.post(
+            f"{API}/v1/ask/simple/",
+            json={
+                "q": q,
+                "history": history   # ⬅️ نضيفها هنا
+            },
+            headers=_headers(request),
+            timeout=30,
+        )
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Network error. Please try again."}, status=200)
+
+    if r.status_code == 200:
+        js = r.json() or {}
+        return JsonResponse({"ok": True, "answer": js.get("answer", "")}, status=200)
+
+    try:
+        err = r.json().get("error", {}) if r.content else {}
+    except Exception:
+        err = {}
+
+    code = err.get("code") or "error"
+    msg  = err.get("message") or "Something went wrong."
+
+    if code == "inactive":
+        msg = "Your subscription is inactive. Please renew your plan to use AI."
+    elif code == "ai_limit":
+        msg = "You reached today’s AI limit. Try again tomorrow."
+
+    return JsonResponse({"ok": False, "error": msg}, status=200)

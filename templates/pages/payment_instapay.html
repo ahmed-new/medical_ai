@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container py-4" style="max-width: 720px;">
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h3 class="mb-1">Instapay Payment</h3>
+      <small class="text-muted">
+        {% if submitted %}
+          Your payment has been submitted. We're verifying your transfer.
+        {% else %}
+          Complete your transfer and then confirm below.
+        {% endif %}
+      </small>
+    </div>
+    <a href="{% url 'web_plans' %}" class="btn btn-light btn-sm">
+      ← Back to plans
+    </a>
+  </div>
+
+  {# ---------- Payment Summary ---------- #}
+  <div class="card-soft p-4 mb-3">
+    <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+      <div>
+        <div class="text-muted small mb-1">Selected plan</div>
+        <h5 class="mb-0">
+          {% if payment %}
+            {{ payment.plan }}
+          {% else %}
+            {{ plan.name }}
+          {% endif %}
+        </h5>
+        <div class="text-muted small">Code: {{ plan.code }}</div>
+      </div>
+
+      <div class="text-end">
+        <div class="text-muted small mb-1">Amount</div>
+        <div id="price-box">
+          <span id="base-price" class="fs-4 fw-semibold">{{ plan.price_egp }} EGP</span>
+          <span id="discounted-price" class="fs-4 fw-semibold text-success d-none"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-3 mb-3">
+      <div class="col-md-6">
+        <div class="mb-2">
+          <span class="text-muted d-block small mb-1">Pay using Instapay</span>
+          <a href="{{ instapay_link }}" target="_blank"
+             class="btn btn-outline-primary btn-sm d-flex align-items-center justify-content-center gap-2 w-100">
+            <img src="{% static 'logos/instapay.png' %}"
+                 alt="Instapay"
+                 style="height: 26px; width: auto;">
+            <span>Open Instapay Link</span>
+          </a>
+          <small class="text-muted d-block mt-1">
+            You will be redirected to the merchant's Instapay account.
+          </small>
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="mb-2">
+          <span class="text-muted d-block small mb-1">Notes code (to write in Instapay)</span>
+          <div class="input-group input-group-sm">
+            {% if payment %}
+              <input type="text" class="form-control fw-semibold" value="{{ payment.notes_code }}" readonly>
+            {% else %}
+              <input type="text" id="notes-code-text" class="form-control fw-semibold" readonly>
+            {% endif %}
+            <button class="btn btn-outline-secondary" type="button" onclick="copyNotesCode()">
+              Copy
+            </button>
+          </div>
+          <small class="text-muted d-block mt-1">
+            Paste this code exactly in the <strong>“Notes”</strong> field on Instapay.
+          </small>
+        </div>
+      </div>
+    </div>
+
+    {% if not submitted %}
+      {# ---------- Coupon ---------- #}
+      <div class="border rounded-3 p-3 mb-3 bg-light-subtle">
+        <div class="row g-3 align-items-end">
+          <div class="col-md-6">
+            <label class="form-label small mb-1">Have a coupon? (optional)</label>
+            <form id="coupon-form" class="d-flex gap-2">
+              <input type="text" id="coupon-code-input"
+                     class="form-control form-control-sm"
+                     placeholder="Enter coupon code">
+              <button class="btn btn-outline-secondary btn-sm" type="submit">Apply</button>
+            </form>
+          </div>
+          <div class="col-md-6">
+            <div id="coupon-result" class="small text-muted">
+              <!-- Coupon result message -->
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+
+    <div class="border rounded-3 p-3 mb-0">
+      <div class="small fw-semibold mb-2">How it works</div>
+      <ol class="small ps-3 mb-0">
+        <li>Click the <strong>Instapay</strong> button above to open the payment link.</li>
+        <li>Transfer the required amount to the displayed account.</li>
+        <li>In the Instapay <strong>Notes</strong> field, write the code shown above.</li>
+        <li>After you complete the transfer, fill in the <strong>confirmation form</strong> below.</li>
+      </ol>
+    </div>
+
+    {% if payment %}
+      <div class="alert alert-warning mt-3 mb-0">
+        <div>
+          Payment status: <strong>{{ payment.status|title }}</strong>
+        </div>
+        <div class="small text-muted mt-1">
+          We received your confirmation. After our team verifies your transfer, your subscription will be activated.
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+  {# ---------- Confirmation Form ---------- #}
+  {% if not submitted %}
+    <div class="card-soft p-4">
+      <h6 class="mb-3">Confirm your transfer</h6>
+      <p class="text-muted small mb-3">
+        Please provide the transfer details as shown in Instapay to help us verify your payment faster.
+      </p>
+
+      <form method="post" action="{% url 'web_payment_confirm' %}">
+        {% csrf_token %}
+        <input type="hidden" name="plan_code" value="{{ plan.code }}">
+        <input type="hidden" id="notes-code-input" name="notes_code" value="">
+        <input type="hidden" id="final-price-input" name="final_price" value="{{ plan.price_egp }}">
+
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label small">Instapay reference number <span class="text-danger">*</span></label>
+            <input name="reference_no" class="form-control form-control-sm" required placeholder="e.g. 1234567890">
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label small">Amount (EGP)</label>
+            <input id="amount-input" name="amount_egp" type="number" step="0.01"
+                   class="form-control form-control-sm"
+                   value="{{ plan.price_egp }}">
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label small">Transfer time</label>
+            <input name="transfer_at" type="datetime-local" class="form-control form-control-sm">
+          </div>
+
+          <div class="col-12">
+            <label class="form-label small">Note (optional)</label>
+            <input name="note" class="form-control form-control-sm" placeholder="Any extra details about the transfer">
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 mt-3">
+          <button class="btn btn-primary btn-sm" type="submit">Submit confirmation</button>
+          <a href="{% url 'web_profile' %}" class="btn btn-light btn-sm">Back to profile</a>
+        </div>
+      </form>
+    </div>
+  {% else %}
+    <div class="text-end">
+      <a href="{% url 'web_profile' %}" class="btn btn-light btn-sm">Back to profile</a>
+    </div>
+  {% endif %}
+
+</div>
+
+<script>
+  // ---------------- Copy notes code ----------------
+  function copyNotesCode() {
+    const input = document.getElementById("notes-code-text");
+    if (input && input.value) {
+      navigator.clipboard.writeText(input.value);
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    {% if not submitted %}
+      // -------- Generate Notes Code --------
+      const hiddenInput = document.getElementById("notes-code-input");
+      const textInput = document.getElementById("notes-code-text");
+      if (hiddenInput && textInput && !hiddenInput.value) {
+        let code;
+        if (window.crypto && window.crypto.randomUUID) {
+          code = window.crypto.randomUUID().slice(0, 8);
+        } else {
+          code = Math.random().toString(36).substring(2, 10).toUpperCase();
+        }
+        hiddenInput.value = code;
+        textInput.value = code;
+      }
+
+      // -------- Coupon Logic --------
+      const couponForm = document.getElementById("coupon-form");
+      if (couponForm) {
+        couponForm.addEventListener("submit", function (e) {
+          e.preventDefault();
+
+          const codeInput = document.getElementById("coupon-code-input");
+          const resBox = document.getElementById("coupon-result");
+          const basePriceEl = document.getElementById("base-price");
+          const discountedEl = document.getElementById("discounted-price");
+          const amountInput = document.getElementById("amount-input");
+          const finalPriceInput = document.getElementById("final-price-input");
+
+          const code = codeInput.value.trim();
+          if (!code) {
+            resBox.textContent = "Please enter a coupon code.";
+            resBox.className = "small text-danger";
+            return;
+          }
+
+          resBox.textContent = "Checking coupon...";
+          resBox.className = "small text-muted";
+
+          const planCode = "{{ plan.code }}";
+          const url = "{% url 'web_coupon_validate' %}?code=" + encodeURIComponent(code)
+                      + "&plan_code=" + encodeURIComponent(planCode);
+
+          fetch(url)
+            .then(r => r.json())
+            .then(data => {
+              if (!data.ok) {
+                resBox.textContent = data.message || "Error validating coupon.";
+                resBox.className = "small text-danger";
+                return;
+              }
+
+              if (!data.valid) {
+                resBox.textContent = data.message || "Invalid or expired coupon.";
+                resBox.className = "small text-danger";
+                // reset to base price
+                discountedEl.classList.add("d-none");
+                basePriceEl.classList.remove("text-decoration-line-through");
+                amountInput.value = "{{ plan.price_egp }}";
+                finalPriceInput.value = "{{ plan.price_egp }}";
+              } else {
+                const newPrice = data.discounted_price || "{{ plan.price_egp }}";
+                resBox.textContent = "Coupon applied! New price: " + newPrice + " EGP";
+                resBox.className = "small text-success";
+
+                // show discounted price
+                basePriceEl.classList.add("text-decoration-line-through", "text-muted");
+                discountedEl.textContent = newPrice + " EGP";
+                discountedEl.classList.remove("d-none");
+
+                // update form inputs
+                amountInput.value = newPrice;
+                finalPriceInput.value = newPrice;
+              }
+            })
+            .catch(() => {
+              resBox.textContent = "Network error.";
+              resBox.className = "small text-danger";
+            });
+        });
+      }
+    {% endif %}
+  });
+</script>
+{% endblock %}

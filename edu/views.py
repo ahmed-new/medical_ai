@@ -9,7 +9,7 @@ from .models import Year, Semester, Module, Subject, Chapter, Lesson ,Question ,
 from .serializers import (
     YearSerializer, SemesterSerializer, ModuleSerializer,
     SubjectSerializer, LessonSerializer ,QuestionLiteSerializer ,QuestionDetailSerializer,LessonLiteSerializer,
-    FlashCardSerializer,FlashCardCreateUpdateSerializer ,FavoriteLessonSerializer,PlannerTaskSerializer,QuestionAttemptCreateSerializer
+    FlashCardSerializer,FlashCardCreateUpdateSerializer ,FavoriteLessonSerializer,PlannerTaskSerializer,QuestionAttemptCreateSerializer ,ChapterSerializer
 )
 from users.permissions import SingleDeviceOnly
 from datetime import date
@@ -206,6 +206,7 @@ class StudentQuestions(APIView):
             return Response({"detail": "No study year set for user."}, status=400)
 
         facets_flag = request.query_params.get("facets") in ("1","true","True")
+        full_flag   = request.query_params.get("full") in ("1","true","True")
         # params
         lesson_id     = request.query_params.get("lesson_id")
         subject_id    = request.query_params.get("subject_id")
@@ -290,6 +291,10 @@ class StudentQuestions(APIView):
         total = qs.count()
         items = qs[offset:offset+limit]
         data = QuestionLiteSerializer(items, many=True).data
+        if full_flag:
+            data = QuestionDetailSerializer(items, many=True).data
+        else:
+            data = QuestionLiteSerializer(items, many=True).data
 
         resp = {"total": total, "limit": limit, "offset": offset, "items": data}
         
@@ -1007,3 +1012,259 @@ class QuestionAttemptsStats(APIView):
         correct = qs.filter(is_correct=True).count()
         acc = (correct / total * 100.0) if total else 0.0
         return Response({"total": total, "correct": correct, "accuracy": round(acc, 1)}, status=200)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+from django.core.cache import cache
+
+
+class HomeDashboardView(APIView):
+    """
+    API مخصّص للهوم:
+    يرجّع كل الأرقام اللى صفحة الهوم محتاجاها فى ضربة واحدة.
+    مع caching per user لمدة قصيرة.
+    """
+    permission_classes = [IsAuthenticated, SingleDeviceOnly]
+
+    def get(self, request):
+        user = request.user
+
+        # ===== 1) جرّب تقرأ من الكاش أولاً =====
+        cache_key = f"home_dashboard_u{user.id}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached, status=200)
+
+        # ===== 2) مفيش كاش → احسب الداتا عادي =====
+
+        # --- Streak (نفس منطق StreakMessageView) ---
+        streak_obj = getattr(user, "streak", None)
+        n = streak_obj.current_streak if streak_obj else 0
+
+        if n <= 0:
+            msg = "Let’s start a new streak today!"
+        elif n == 1:
+            msg = "Great start! Day 1 in a row"
+        elif n == 2:
+            msg = "Keep it up! Day 2 in a row"
+        else:
+            msg = f"Nice! Day {n} in a row 🎉"
+
+        streak = {"current_streak": n, "message": msg}
+
+        # --- Study sessions today / month ---
+        now = timezone.now()
+        qs_sessions = StudySession.objects.filter(user=user)
+
+        today_qs = qs_sessions.filter(created_at__date=now.date())
+        study_today_min = today_qs.aggregate(models.Sum("minutes"))["minutes__sum"] or 0
+
+        month_qs = qs_sessions.filter(created_at__gte=now - timezone.timedelta(days=30))
+        study_month_min = month_qs.aggregate(models.Sum("minutes"))["minutes__sum"] or 0
+
+        trees_today = study_today_min // 25
+
+        # --- Question stats (كل الفترات) ---
+        qs_attempts = QuestionAttempt.objects.filter(user=user)
+        total = qs_attempts.count()
+        correct = qs_attempts.filter(is_correct=True).count()
+        accuracy = (correct / total * 100.0) if total else 0.0
+        accuracy = round(accuracy, 1)
+
+        # --- Favorites + last lesson ---
+        year = _get_user_year(request)
+        fav_lessons_total = 0
+        last_lesson_data = None
+
+        if year:
+            fav_qs = (
+                FavoriteLesson.objects
+                .filter(
+                    user=user,
+                    lesson__subject__module__semester__year=year,
+                    lesson__subject__module__is_ready=True,
+                )
+            )
+            fav_lessons_total = fav_qs.count()
+
+            lp = (
+                LessonProgress.objects
+                .select_related("lesson")
+                .filter(
+                    user=user,
+                    is_done=True,
+                    lesson__subject__module__semester__year=year,
+                    lesson__subject__module__is_ready=True,
+                )
+                .order_by("-id")
+                .first()
+            )
+            if lp and lp.lesson:
+                last_lesson_data = {
+                    "id": lp.lesson.id,
+                    "title": lp.lesson.title,
+                }
+
+        data = {
+            "streak": streak,
+            "study_today_min": study_today_min,
+            "study_month_min": study_month_min,
+            "trees_today": trees_today,
+            "solved_qs": total,
+            "accuracy": accuracy,
+            "fav_lessons_total": fav_lessons_total,
+            "flashcards_reviewed": 0,  # هنسيبها 0 مؤقتًا
+            "last_lesson": last_lesson_data,
+        }
+
+        # ===== 3) خزن في الكاش لمدة 60 ثانية =====
+        cache.set(cache_key, data, timeout=60)
+
+        return Response(data, status=200)
+
+
+
+
+
+
+
+class MaterialsHomeView(APIView):
+    """
+    API مخصّص لقسم Materials:
+    - يرجّع:
+      year_me, semesters, modules, subjects
+      + (chapters, lessons) لو فيه subject/chapter
+      + favorite_ids, done_ids
+    - مع caching per user + filters لمدة قصيرة.
+    """
+    permission_classes = [IsAuthenticated, SingleDeviceOnly]
+
+    def get(self, request):
+        user = request.user
+        subject_id = request.query_params.get("subject")
+        chapter_id = request.query_params.get("chapter")
+        part_type  = request.query_params.get("part_type")  # theoretical|practical
+
+        year = _get_user_year(request)
+
+        # ===== 1) كاش per user + filters =====
+        cache_key = (
+            f"materials_home_u{user.id}_"
+            f"y{year.id if year else 'none'}_"
+            f"s{subject_id or 'none'}_"
+            f"c{chapter_id or 'none'}_"
+            f"p{part_type or 'all'}"
+        )
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached, status=200)
+
+        # لو مفيش سنه متظبطة للطالب
+        if not year:
+            data = {
+                "year_me": None,
+                "semesters": [],
+                "modules": [],
+                "subjects": [],
+                "chapters": [],
+                "lessons": [],
+                "favorite_ids": [],
+                "done_ids": [],
+            }
+            cache.set(cache_key, data, 60)
+            return Response(data, status=200)
+
+        # ===== 2) Semesters / Modules / Subjects =====
+        semesters_qs = Semester.objects.filter(year=year).order_by("order", "id")
+
+        modules_qs = (
+            Module.objects
+            .filter(semester__year=year, is_ready=True)
+            .order_by("order", "id")
+        )
+
+        subjects_qs = (
+            Subject.objects
+            .filter(module__semester__year=year, module__is_ready=True)
+            .order_by("order", "id")
+        )
+
+        # ===== 3) Chapters (لو subject متختار) =====
+        chapters_qs = Chapter.objects.none()
+        lessons_qs = Lesson.objects.none()
+
+        if subject_id:
+            chapters_qs = (
+                Chapter.objects
+                .filter(
+                    subject_id=subject_id,
+                    subject__module__semester__year=year,
+                    subject__module__is_ready=True,
+                )
+                .order_by("order", "id")
+            )
+
+            # ===== 4) Lessons (لو chapter متختار) =====
+            if chapter_id:
+                lessons_qs = Lesson.objects.filter(
+                    subject__module__semester__year=year,
+                    subject_id=subject_id,
+                    chapter_id=chapter_id,
+                    subject__module__is_ready=True,
+                )
+                if part_type in ("theoretical", "practical"):
+                    lessons_qs = lessons_qs.filter(part_type=part_type)
+                lessons_qs = lessons_qs.select_related("subject", "chapter").order_by("order", "id")
+
+        # ===== 5) favorites ids (نفس منطق FavoriteLessonIDs) =====
+        fav_qs = (
+            FavoriteLesson.objects
+            .filter(
+                user=user,
+                lesson__subject__module__semester__year=year,
+                lesson__subject__module__is_ready=True,
+            )
+        )
+        favorite_ids = list(fav_qs.values_list("lesson_id", flat=True))
+
+        # ===== 6) done_ids (نفس منطق LessonProgressIDs لما يكون فيه subject) =====
+        done_ids = []
+        if subject_id:
+            prog_qs = (
+                LessonProgress.objects
+                .filter(
+                    user=user,
+                    is_done=True,
+                    lesson__subject__module__semester__year=year,
+                    lesson__subject__module__is_ready=True,
+                    lesson__subject_id=subject_id,
+                )
+            )
+            done_ids = list(prog_qs.values_list("lesson_id", flat=True))
+
+        data = {
+            "year_me": YearSerializer(year).data,
+            "semesters": SemesterSerializer(semesters_qs, many=True).data,
+            "modules": ModuleSerializer(modules_qs, many=True).data,
+            "subjects": SubjectSerializer(subjects_qs, many=True).data,
+            "chapters": ChapterSerializer(chapters_qs, many=True).data if subject_id else [],
+            "lessons": LessonLiteSerializer(lessons_qs, many=True).data if chapter_id else [],
+            "favorite_ids": favorite_ids,
+            "done_ids": done_ids,
+        }
+
+        # ===== 7) حط النتيجة في الكاش (60 ثانية مثلاً) =====
+        cache.set(cache_key, data, 60)
+
+        return Response(data, status=200)

@@ -47,7 +47,7 @@ class UserAdmin(BaseUserAdmin):
 
 
 from django.contrib import admin
-from .models import Plan, Coupon, Subscription
+from .models import Plan, Coupon, Subscription ,Payment
 
 
 # ---------- Plan ----------
@@ -90,3 +90,34 @@ class SubscriptionAdmin(admin.ModelAdmin):
     def mark_as_expired(self, request, queryset):
         updated = queryset.update(status=Subscription.Status.EXPIRED)
         self.message_user(request, f"{updated} subscription(s) marked as EXPIRED.")
+
+
+
+
+
+
+@admin.register(Payment)
+class PaymentAdmin(admin.ModelAdmin):
+    list_display = ("id", "user", "plan", "final_price", "status", "notes_code", "created_at")
+    list_filter = ("status", "plan")
+    search_fields = ("user__username", "user__email", "notes_code", "id")
+    ordering = ("-created_at",)
+    readonly_fields = ("created_at",)
+
+    actions = ["mark_as_paid", "mark_as_failed"]
+
+    def mark_as_paid(self, request, queryset):
+        count = 0
+        for payment in queryset:
+            if payment.status != Payment.Status.PAID:
+                payment.status = Payment.Status.PAID
+                payment.save()   # 👈 هنا السيجنال يشتغل
+                count += 1
+        self.message_user(request, f"{count} payment(s) marked as PAID.")
+    mark_as_paid.short_description = "Mark selected payments as PAID"
+
+    def mark_as_failed(self, request, queryset):
+        updated = queryset.update(status=Payment.Status.FAILED)
+        self.message_user(request, f"{updated} payment(s) marked as FAILED.")
+    mark_as_failed.short_description = "Mark selected payments as FAILED"
+

@@ -97,10 +97,31 @@ def build_context(chunks, max_chars=2500):
 from django.conf import settings
 import requests, re
 
-def answer_with_gemini(question: str, context: str, student_name: str = "Student") -> str:
+def answer_with_gemini(question: str, context: str, student_name: str = "Student" , history=None) -> str:
     if not context or not context.strip():
         return "No references matched your question. (context is empty)"
+    
+    history = history or []
+    
+     # نحولها لتكست بسيط
+    convo_lines = []
+    for turn in history[-10:]:
+        role = turn.get("role", "user").lower()
+        if role in ("user", "student"):
+            prefix = "Student"
+        elif role in ("bot", "assistant", "tutor"):
+            prefix = "Tutor"
+        else:
+            prefix = "Student"
 
+        content = (turn.get("content") or "").strip()
+        if content:
+            convo_lines.append(f"{prefix}: {content}")
+    convo_text = "\n".join(convo_lines).strip()
+
+    convo_block = f"Conversation so far:\n{convo_text}\n\n" if convo_text else ""
+    
+    
     model = getattr(settings, "GEMINI_GEN_MODEL", "gemini-1.5-flash")
     url   = f"https://generativelanguage.googleapis.com/v1/models/{model}:generateContent"
     headers = {
@@ -110,22 +131,28 @@ def answer_with_gemini(question: str, context: str, student_name: str = "Student
 
     prompt = f"""You are a clinical tutor helping a medical student at Zagazig University in Egypt.
 
-You MUST rely ONLY on the following excerpts ("Context"). If a detail is not present in the Context, do NOT add it.
-Do NOT include any citations, bracketed references, source IDs, URLs, or a "References" section in your answer.
+    You MUST rely ONLY on the following excerpts ("Context"). If a detail is not present in the Context, do NOT add it.
+    Do NOT include any citations, bracketed references, source IDs, URLs, or a "References" section in your answer.
 
-Style rules:
-- Start by addressing the student by name: "{student_name}, ..."
-- Friendly, supportive, professional English suitable for a medical student.
-- Prefer concise sentences and bullet points/steps where helpful.
-- Focus on: definition, urgent steps, why they matter, and common pitfalls.
-- If the Context is insufficient, reply exactly:
-"I cannot be certain from the available references unliss user not asking for educational."
+    Style rules:
+    - Start your first sentence by addressing the student by name: "{student_name}, ..."
+    - Use a warm, friendly, encouraging tone, as if you are a kind senior doctor teaching a junior.
+    - Prefer concise sentences and bullet points/steps where helpful.
+    - Reuse the student's name naturally from time to time in the explanation (not in every line).
+    - Focus on: definition, urgent steps, why they matter, and common pitfalls.
+    - If the Context is insufficient, reply exactly:
+    "I cannot be certain from the available references unliss user not asking for educational."
+    - Finish your answer with one short friendly follow-up suggestion on a separate last line,
+    starting with:
+    "💡 Next:" and suggest what the student could ask you next that is related to this topic
+    or to the previous conversation (e.g. comparisons, mnemonics, quick quizzes).
 
-Question:
-{question}
+    {convo_block}New question from {student_name}:
+    {question}
 
-Context:
-{context}""".strip()
+    Context:
+    {context}""".strip()
+
 
     payload = {
         "contents": [{"role": "user", "parts": [{"text": prompt}]}],
@@ -138,6 +165,11 @@ Context:
             {"category": "HARM_CATEGORY_CIVIC_INTEGRITY",   "threshold": "BLOCK_NONE"},
         ],
     }
+    print(">>> received history:", history)
+
+    print("=== convo_block ===")
+    print(convo_block)
+    print("====================")
 
     try:
         r = requests.post(url, headers=headers, json=payload, timeout=30)
@@ -191,7 +223,7 @@ def ask(question: str, k: int = 15):
 
 
 
-def api_ask(question: str, k: int = 15, probes: int = 10, max_chars: int = 5000 ,student_name: str = "student"):
+def api_ask(question: str, k: int = 15, probes: int = 10, max_chars: int = 5000 ,student_name: str = "student" , history=None):
     """
     واجهة مرتبة للـ API:
     - answer: نص الإجابة
@@ -201,7 +233,7 @@ def api_ask(question: str, k: int = 15, probes: int = 10, max_chars: int = 5000 
     # لو search_top_k ما بتاخدش probes عندك، سيبها كده والافتراضي داخلها 10
     hits = search_top_k(question, k=k)  # [(distance, Chunk)]
     ctx  = build_context(hits, max_chars=max_chars)
-    ans  = answer_with_gemini(question, ctx ,student_name)
+    ans  = answer_with_gemini(question, ctx ,student_name ,history=history)
 
     sources = [f"{c.file_name}#{c.chunk_index}" for _, c in hits]
     hits_json = [{

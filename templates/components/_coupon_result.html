@@ -1,0 +1,19 @@
+{% if res.valid %}
+  <div class="small">
+    <span class="text-success fw-semibold">{{ res.message }}</span><br>
+    {% if res.discounted_price %}
+      <span class="text-muted">
+        Price after discount:
+        <strong>{{ res.discounted_price }} EGP</strong>
+      </span>
+    {% elif res.base_price %}
+      <span class="text-muted">
+        Base price: <strong>{{ res.base_price }} EGP</strong>
+      </span>
+    {% endif %}
+  </div>
+{% else %}
+  <div class="small text-danger">
+    {{ res.message|default:"Invalid or expired coupon." }}
+  </div>
+{% endif %}

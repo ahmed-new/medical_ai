@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h3 class="mb-0">Flashcards</h3>
+      <small class="text-muted">Browse flashcards by semester, module, subject, and lesson.</small>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-md-4 col-lg-3">
+      <div class="card-soft p-3">
+        <h6 class="mb-2">Navigation</h6>
+        <div id="fc-nav"
+             hx-get="{% url 'fc_nav_semesters' %}"
+             hx-trigger="load"
+             hx-target="#fc-nav"
+             hx-swap="innerHTML">
+          <div class="text-muted small">Loading semesters…</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-8 col-lg-9">
+     <div id="fc-main-panel"
+        class="card-soft p-3"
+        hx-indicator="#fc-main-spin">
+    <div class="d-flex align-items-center justify-content-between mb-1">
+        <div>
+        <h6 class="mb-0">Flashcards browser</h6>
+        <p class="text-muted small mb-0">
+            Choose a semester, then module, subject, and finally a lesson to view its flashcards.
+        </p>
+        </div>
+        <span id="fc-main-spin"
+            class="spinner-border spinner-border-sm d-none htmx-indicator"
+            role="status"></span>
+    </div>
+    </div>
+
+
+    </div>
+  </div>
+</div>
+{% endblock %}

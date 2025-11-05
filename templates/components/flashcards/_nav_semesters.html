@@ -1,0 +1,19 @@
+{# expects: semesters #}
+<div class="list-group list-group-flush small">
+  {% if semesters %}
+    {% for s in semesters %}
+      <button
+        class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+        hx-get="{% url 'fc_nav_modules' %}?semester_id={{ s.id }}"
+        hx-target="#fc-nav"
+        hx-swap="innerHTML"
+        hx-indicator="#fc-nav-loading"
+      >
+        <span>{{ s.name }}</span>
+        <span class="badge bg-light text-muted">open</span>
+      </button>
+    {% endfor %}
+  {% else %}
+    <div class="text-muted small">No semesters available.</div>
+  {% endif %}
+</div>

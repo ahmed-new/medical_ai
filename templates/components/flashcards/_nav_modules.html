@@ -1,0 +1,30 @@
+{# expects: modules #}
+<div class="mb-2">
+  <button class="btn btn-link btn-sm p-0"
+          hx-get="{% url 'fc_nav_semesters' %}"
+          hx-target="#fc-nav"
+          hx-swap="innerHTML">
+    ← Back to semesters
+  </button>
+</div>
+
+<h6 class="small text-muted mb-2">Modules</h6>
+
+<div class="list-group list-group-flush small">
+  {% if modules %}
+    {% for m in modules %}
+        <button
+          class="list-group-item list-group-item-action"
+          hx-get="{% url 'fc_panel_subjects' %}?module_id={{ m.id }}&module_name={{ m.name|urlencode }}"
+          hx-target="#fc-main-panel"
+          hx-swap="innerHTML"
+          hx-indicator="#fc-main-spin"
+        >
+          {{ m.name }}
+        </button>
+      {% endfor %}
+
+  {% else %}
+    <div class="text-muted small">No modules for this semester.</div>
+  {% endif %}
+</div>

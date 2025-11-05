@@ -1,0 +1,33 @@
+{# expects: subject_id, subject_name, chapters #}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h5 class="mb-0">{{ subject_name }}</h5>
+    <small class="text-muted">Choose a chapter to view its lessons.</small>
+  </div>
+  <button class="btn btn-link btn-sm"
+          hx-get="{% url 'fc_panel_subjects' %}?module_id={{ chapters.0.subject.module_id|default:'' }}"
+          hx-target="#fc-main-panel"
+          hx-swap="innerHTML"
+          hx-indicator="#fc-main-spin">
+    ← Back to subjects
+  </button>
+</div>
+
+<div class="list-group">
+  {% if chapters %}
+    {% for c in chapters %}
+      <button
+        class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+        hx-get="{% url 'fc_panel_lessons' %}?chapter_id={{ c.id }}&subject_name={{ subject_name|urlencode }}&chapter_name={{ c.title|urlencode }}"
+        hx-target="#fc-main-panel"
+        hx-swap="innerHTML"
+        hx-indicator="#fc-main-spin"
+      >
+        <span>{{ c.title }}</span>
+        <span class="badge bg-light text-muted">lessons</span>
+      </button>
+    {% endfor %}
+  {% else %}
+    <div class="alert alert-secondary mb-0">No chapters for this subject.</div>
+  {% endif %}
+</div>

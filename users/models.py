@@ -6,6 +6,7 @@ from django.conf import settings
 from django.core.validators import RegexValidator
 from django.core.validators import MinValueValidator, MaxValueValidator
 from decimal import Decimal
+import uuid
 
 
 phone_validator = RegexValidator(
@@ -106,38 +107,65 @@ class Coupon(models.Model):
 
 
 
+# users/models.py (أو حيث يوجد Subscription)
 class Subscription(models.Model):
-    """
-    تمثيل بسيط للاشتراك الحالي (تجريبي أو مدفوع).
-    """
     class Status(models.TextChoices):
-        TRIAL   = "trial", "Trial"
-        ACTIVE  = "active", "Active"
-        EXPIRED = "expired", "Expired"
+        TRIAL    = "trial", "Trial"
+        ACTIVE   = "active", "Active"
+        EXPIRED  = "expired", "Expired"
+        PENDING  = "pending", "Pending"   # الجديد
 
-    user = models.ForeignKey("users.User", on_delete=models.CASCADE, related_name="subscriptions", db_index=True)
-    plan = models.ForeignKey(Plan, on_delete=models.PROTECT)
+    user  = models.ForeignKey("users.User", on_delete=models.CASCADE, related_name="subscriptions", db_index=True)
+    plan  = models.ForeignKey(Plan, on_delete=models.PROTECT)
+    payment = models.OneToOneField("Payment", on_delete=models.SET_NULL, null=True, blank=True, related_name="subscription")  # للربط
 
-    status = models.CharField(max_length=16, choices=Status.choices, default=Status.ACTIVE, db_index=True)
-    is_trial = models.BooleanField(default=False, db_index=True)
+    status    = models.CharField(max_length=16, choices=Status.choices, default=Status.ACTIVE, db_index=True)
+    is_trial  = models.BooleanField(default=False, db_index=True)
 
-    started_at = models.DateTimeField(default=timezone.now)
-    ends_at = models.DateTimeField(db_index=True)
+    started_at = models.DateTimeField(null=True, blank=True)  # كان default=timezone.now
+    ends_at    = models.DateTimeField(null=True, blank=True)  # كان required
 
-
-    # نحتفظ بنص الكوبون فقط لتبسيط الأمور (هنستخدمه لاحقًا)
-    coupon_code = models.CharField(max_length=32, blank=True, null=True)
+    coupon_code     = models.CharField(max_length=32, blank=True, null=True)
     final_price_egp = models.DecimalField(max_digits=9, decimal_places=2, default=Decimal("0.00"))
-
-    def __str__(self):
-        t = "TRIAL" if self.is_trial else "PAID"
-        return f"{self.user} - {self.plan.code} [{t}]"
 
     @property
     def is_active_now(self):
-        return self.status in (self.Status.TRIAL, self.Status.ACTIVE) and self.ends_at >= timezone.now()
+        return (
+            self.status in (self.Status.TRIAL, self.Status.ACTIVE)
+            and self.ends_at is not None
+            and self.ends_at >= timezone.now()
+        )
 
 
+
+
+
+
+class Payment(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        PAID = "paid", "Paid"
+        FAILED = "failed", "Failed"
+        CANCELLED = "cancelled", "Cancelled"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    plan = models.ForeignKey(Plan, on_delete=models.PROTECT)
+    discount_code = models.CharField(max_length=50, blank=True, null=True)
+    final_price = models.DecimalField(max_digits=8, decimal_places=2)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+
+    # هذا هو الكود الذي يكتبه الطالب في خانة الملاحظات في Instapay
+    notes_code = models.CharField(max_length=100, unique=True)
+
+    # بيانات إضافية من فورم التأكيد
+    reference_no = models.CharField(max_length=100, blank=True, null=True)
+    user_note = models.CharField(max_length=255, blank=True, null=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user} - {self.plan} - {self.status}"
 
 
 class UserStreak(models.Model):

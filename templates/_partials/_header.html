@@ -1,4 +1,13 @@
-<a href="/" class="app-brand">Axonelix</a>
+{% load static %}
+
+
+<a href="/" class="app-brand d-flex align-items-center">
+  <img
+    src="{% static 'logos/Axonelix.png' %}"
+    alt="Axonelix Medical Hub"
+    class="app-brand-logo"
+  >
+</a>
 <div class="d-flex align-items-center gap-3">
   {% if request.session.access %}
     <a href="/logout/" class="text-decoration-none text-muted">Logout</a>
