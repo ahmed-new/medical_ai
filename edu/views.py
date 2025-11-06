@@ -799,7 +799,7 @@ class LessonProgressList(APIView):
         total = qs.count()
         items_qs = (
             qs.select_related("lesson", "lesson__subject")
-              .order_by("-created_at", "-id")[offset:offset+limit]
+              .order_by("-completed_at", "-id")[offset:offset+limit]
         )
 
         data = LessonProgressSerializer(items_qs, many=True).data

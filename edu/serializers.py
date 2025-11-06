@@ -180,7 +180,7 @@ class LessonProgressSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = LessonProgress
-        fields = ["id", "lesson", "created_at"]
+        fields = ["id", "lesson", "completed_at"]
 
     def get_lesson(self, obj):
         from .serializers import LessonLiteSerializer
