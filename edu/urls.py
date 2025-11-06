@@ -6,7 +6,7 @@ from .views import (
     FlashCardListCreate , FlashCardDetail,FavoriteLessonList, FavoriteLessonAdd, FavoriteLessonRemove, 
     FavoriteLessonIDs ,FlashcardCountView,LessonProgressCountView ,LessonMarkDoneView,
     PlannerTaskListCreate,PlannerToday,PlannerMarkDone,PlannerMarkUndone,PlannerDelete,StreakMessageView,LessonProgressIDs,StudentChapters
-    ,StudySessionListCreate,QuestionAttemptCreate ,QuestionAttemptsStats,QuestionReveal,HomeDashboardView,MaterialsHomeView
+    ,StudySessionListCreate,QuestionAttemptCreate ,QuestionAttemptsStats,QuestionReveal,HomeDashboardView,MaterialsHomeView ,LessonProgressList
 )
 
 
@@ -33,6 +33,7 @@ urlpatterns = [
     path("api/v1/edu/lessons/<int:lesson_id>/progress/done/", LessonMarkDoneView.as_view(), name="edu_lessons_progress_done"),
     # edu/urls.py
     path("api/v1/edu/lessons/progress/ids/", LessonProgressIDs.as_view(), name="edu_lessons_progress_ids"),
+    path("api/v1/edu/lessons/progress/", LessonProgressList.as_view(), name="edu_lessons_progress_list"),
 
 
     # streak

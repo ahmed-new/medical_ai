@@ -914,12 +914,18 @@ def pomodoro_log(request):
 
 
 
+from edu.policy import can_view_questions, get_policy, sources_allowed
 
 # ------ صفحة دخول القسم ------
 def web_questions_browse(request):
     if not _require_auth(request):
         return redirect("web_login")
-    return render(request, "pages/questions_browse.html")
+
+    can_q = can_view_questions(request.user)
+
+    return render(request, "pages/questions_browse.html", {
+        "can_view_questions": can_q,
+    })
 
 
 # --------------- helpers ---------------
@@ -999,24 +1005,60 @@ def q_nav_modules(request):
 def q_panel_module_hub(request):
     """
     أول ما الطالب يختار Module
+    بيظهر له هَب فيها:
+    - QBank
+    - Exam review
+    - Old exams
+    وكل واحدة تتقفل / تتفتح حسب الـ policy.
     """
     mid = request.GET.get("module_id")
-    ctx = {"module_id": mid}
+
+    policy  = get_policy(request.user)
+    allowed = set(sources_allowed(request.user))
+
+    ctx = {
+        "module_id": mid,
+        "allow_qbank":       "qbank" in allowed,
+        "allow_exam_review": "exam_review" in allowed,
+        "allow_old_exam":    "old_exam" in allowed,
+        "allow_tbl":         policy.get("allow_tbl", False),
+        "allow_flipped":     policy.get("allow_flipped", False),
+    }
+
     return HttpResponse(
-        render_to_string("components/questions/_panel_module_hub.html", ctx, request=request)
+        render_to_string(
+            "components/questions/_panel_module_hub.html",
+            ctx,
+            request=request,
+        )
     )
+
+
 
 
 def q_panel_old_hub(request):
     """
     Old Exams → Finals | MidTerm | TPL | Flipped
-    (مش زر واحد TPL & Flipped زى الموبايل)
     """
     mid = request.GET.get("module_id")
-    ctx = {"module_id": mid}
+
+    policy  = get_policy(request.user)
+    allowed = set(sources_allowed(request.user))
+
+    ctx = {
+        "module_id": mid,
+        "allow_old_exam": "old_exam" in allowed,
+        "allow_tbl":      policy.get("allow_tbl", False),
+        "allow_flipped":  policy.get("allow_flipped", False),
+    }
     return HttpResponse(
-        render_to_string("components/questions/_panel_old_hub.html", ctx, request=request)
+        render_to_string(
+            "components/questions/_panel_old_hub.html",
+            ctx,
+            request=request,
+        )
     )
+
 
 
 def q_panel_examreview_hub(request):
@@ -1024,10 +1066,24 @@ def q_panel_examreview_hub(request):
     Exam review → Finals | MidTerm | TPL & Flipped
     """
     mid = request.GET.get("module_id")
-    ctx = {"module_id": mid}
+
+    policy  = get_policy(request.user)
+    allowed = set(sources_allowed(request.user))
+
+    ctx = {
+        "module_id": mid,
+        "allow_exam_review": "exam_review" in allowed,
+        "allow_tbl":         policy.get("allow_tbl", False),
+        "allow_flipped":     policy.get("allow_flipped", False),
+    }
     return HttpResponse(
-        render_to_string("components/questions/_panel_examreview_hub.html", ctx, request=request)
+        render_to_string(
+            "components/questions/_panel_examreview_hub.html",
+            ctx,
+            request=request,
+        )
     )
+
 
 
 # --------------- shared smaller panels ---------------
@@ -1944,26 +2000,42 @@ def fc_panel_lessons(request):
         return HttpResponse("Auth", status=401)
 
     chapter_id   = request.GET.get("chapter_id")
+    subject_id   = request.GET.get("subject_id")   # للـ UI بس
     subject_name = request.GET.get("subject_name") or ""
     chapter_name = request.GET.get("chapter_name") or "Lessons"
     lessons      = []
 
     if chapter_id:
         try:
+            # نادى على نفس API اللى كنت بتجربه فى البراوزر
+            url = f"{API}/v1/edu/lessons/?chapter_id={chapter_id}"
+
             rl = requests.get(
-                f"{API}/v1/edu/lessons/?chapter_id={chapter_id}",
+                url,
                 headers=_headers(request),
                 timeout=8,
             )
+
+            # DEBUG بسيط – تقدر تشيله بعد ما تتأكد
+            print("LESSONS API:", rl.status_code, url)
+
             if rl.status_code == 200:
                 lessons = _json_list(rl)
-        except Exception:
+            else:
+                # تطبع عالأقل جسم الريسبونس لو فى Error
+                try:
+                    print("LESSONS API BODY:", rl.text[:300])
+                except Exception:
+                    pass
+        except Exception as e:
+            print("LESSONS API ERROR:", e)
             lessons = []
 
     html = render_to_string(
         "components/flashcards/_panel_lessons.html",
         {
             "chapter_id": chapter_id,
+            "subject_id": subject_id,
             "subject_name": subject_name,
             "chapter_name": chapter_name,
             "lessons": lessons,
@@ -1971,6 +2043,9 @@ def fc_panel_lessons(request):
         request=request,
     )
     return HttpResponse(html)
+
+
+
 
 
 
@@ -2022,12 +2097,15 @@ def fc_panel_flashcards(request):
     except Exception:
         return HttpResponse("<div class='alert alert-secondary'>Network error.</div>", status=200)
 
+    can_create = can_use_flashcards(request.user)  # ✅
+
     ctx = {
         "lesson_id": lesson_id,
         "lesson_name": lesson_name,
         "subject_id": subject_id,
         "admin_cards": admin_cards,
         "my_cards": my_cards,
+        "can_create_flashcards": can_create,  # ✅ نبعته للتمبلت
     }
     html = render_to_string("components/flashcards/_panel_flashcards.html", ctx, request=request)
     return HttpResponse(html)
@@ -2037,11 +2115,22 @@ def fc_panel_flashcards(request):
 
 
 
+from edu.policy import can_use_flashcards
 
 @require_POST
 def web_flashcards_create_browse(request, lesson_id: int):
     if not _require_auth(request):
         return HttpResponse("Auth", status=401)
+
+    # ✅ أولاً: تأكد إن خطة المستخدم تسمح بإنشاء فلاش كاردز
+    if not can_use_flashcards(request.user):
+        # دى هتترمى جوه الـ hx-target بتاع الليست، فهتطلع رسالة صغيرة فوق
+        return HttpResponse(
+            '<div class="alert alert-warning small mb-0">'
+            'Flashcard creation is available for premium plans only.'
+            '</div>',
+            status=200,
+        )
 
     question = (request.POST.get("question") or "").strip()
     answer   = (request.POST.get("answer") or "").strip()
@@ -2075,6 +2164,17 @@ def web_flashcards_create_browse(request, lesson_id: int):
             status=200,
         )
 
+    # ✅ لو الـ API نفسه رجّع فوربيدن (زيادة أماناً)
+    if r.status_code == 403:
+        try:
+            detail = (r.json() or {}).get("detail") or "Not allowed to create flashcards."
+        except Exception:
+            detail = "Not allowed to create flashcards."
+        return HttpResponse(
+            f'<div class="alert alert-warning small mb-0">{detail}</div>',
+            status=200,
+        )
+
     if r.status_code not in (200, 201):
         return HttpResponse(
             '<div class="alert alert-danger small mb-0">Could not add card.</div>',
@@ -2099,6 +2199,7 @@ def web_flashcards_create_browse(request, lesson_id: int):
         request=request,
     )
     return HttpResponse(html, status=201)
+
 
 
 

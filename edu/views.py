@@ -4,12 +4,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from django.db.models import Q
-from .policy import can_view_questions, sources_allowed ,can_view_lesson_content ,flashcard_visibility_q 
+from .policy import can_view_questions, sources_allowed ,can_view_lesson_content ,flashcard_visibility_q,can_use_flashcards ,  get_policy
 from .models import Year, Semester, Module, Subject, Chapter, Lesson ,Question ,FlashCard,FavoriteLesson ,LessonProgress,PlannerTask,QuestionOption
 from .serializers import (
     YearSerializer, SemesterSerializer, ModuleSerializer,
     SubjectSerializer, LessonSerializer ,QuestionLiteSerializer ,QuestionDetailSerializer,LessonLiteSerializer,
-    FlashCardSerializer,FlashCardCreateUpdateSerializer ,FavoriteLessonSerializer,PlannerTaskSerializer,QuestionAttemptCreateSerializer ,ChapterSerializer
+    FlashCardSerializer,FlashCardCreateUpdateSerializer ,FavoriteLessonSerializer,PlannerTaskSerializer,QuestionAttemptCreateSerializer ,ChapterSerializer,LessonProgressSerializer
 )
 from users.permissions import SingleDeviceOnly
 from datetime import date
@@ -199,14 +199,24 @@ class StudentQuestions(APIView):
 
     def get(self, request):
         if not can_view_questions(request.user):
-            return Response({"detail": "Questions are not available for your current plan/subscription."}, status=403)
+            return Response(
+                {"detail": "Questions are not available for your current plan/subscription."},
+                status=403
+            )
 
         year = _get_user_year(request)
         if not year:
             return Response({"detail": "No study year set for user."}, status=400)
 
-        facets_flag = request.query_params.get("facets") in ("1","true","True")
-        full_flag   = request.query_params.get("full") in ("1","true","True")
+        # === سياسة الباقة ===
+        policy          = get_policy(request.user)
+        allowed_sources = list(sources_allowed(request.user))
+        allow_tbl       = policy.get("allow_tbl", False)
+        allow_flipped   = policy.get("allow_flipped", False)
+
+        facets_flag = request.query_params.get("facets") in ("1", "true", "True")
+        full_flag   = request.query_params.get("full")   in ("1", "true", "True")
+
         # params
         lesson_id     = request.query_params.get("lesson_id")
         subject_id    = request.query_params.get("subject_id")
@@ -215,13 +225,13 @@ class StudentQuestions(APIView):
         source_type   = request.query_params.get("source_type")
         question_type = request.query_params.get("question_type")
         part_type     = request.query_params.get("part_type")
-        
 
         # NEW
         tbl_param     = request.query_params.get("tbl")
         flipped_param = request.query_params.get("flipped")
-        exam_kind = request.query_params.get("exam_kind")   # e.g. final | midterm | ...
-        exam_year = request.query_params.get("exam_year")   # e.g. 2024
+        exam_kind     = request.query_params.get("exam_kind")   # e.g. final | midterm | ...
+        exam_year     = request.query_params.get("exam_year")   # e.g. 2024
+
         tbl_val       = _to_bool_param(tbl_param)
         flipped_val   = _to_bool_param(flipped_param)
 
@@ -247,35 +257,47 @@ class StudentQuestions(APIView):
             qs = qs.filter(subject_id=subject_id)
         elif module_id:
             qs = qs.filter(module_id=module_id)
-         # NEW: فلترة بالشابتر (لو السؤال مربوط بدرس داخل شابتر)
+
+        # NEW: فلترة بالشابتر (لو السؤال مربوط بدرس داخل شابتر)
         if chapter_id:
             qs = qs.filter(lesson__chapter_id=chapter_id)
-            
+
         if part_type in ("theoretical", "practical"):
             qs = qs.filter(part_type=part_type)
 
-        # حسب الباقة
-        allowed = list(sources_allowed(request.user))
-        qs = qs.filter(source_type__in=allowed)
+        # ===== حسب الباقة: مصادر مسموح بيها فقط =====
+        if allowed_sources:
+            qs = qs.filter(source_type__in=allowed_sources)
+        else:
+            qs = qs.none()
 
-        # فلترة إضافية
-        if source_type and source_type in allowed:
+        # فلترة إضافية على source_type لو اليوزر حدده (بس جوه المسموح)
+        if source_type and source_type in allowed_sources:
             qs = qs.filter(source_type=source_type)
+
         if question_type in ["mcq", "written"]:
             qs = qs.filter(question_type=question_type)
 
-        # NEW: فلترة TBL/Flipped
-        if tbl_val is not None:
+        # ===== قيود الخطة على TBL / Flipped =====
+        # لو الخطة مش سامحة، امنع الأسئلة دى بالكامل
+        if not allow_tbl:
+            qs = qs.filter(is_tbl=False)
+
+        if not allow_flipped:
+            qs = qs.filter(is_flipped=False)
+
+        # NEW: فلترة TBL/Flipped بناءً على البرامتر (لكن فقط لو الخطة سامحة)
+        if tbl_val is not None and allow_tbl:
             qs = qs.filter(is_tbl=tbl_val)
-        if flipped_val is not None:
+
+        if flipped_val is not None and allow_flipped:
             qs = qs.filter(is_flipped=flipped_val)
 
         if exam_kind:
             qs = qs.filter(exam_kind=exam_kind)
         if exam_year and exam_year.isdigit():
             qs = qs.filter(exam_year=int(exam_year))
-            
-            
+
         qs = qs.order_by("id")
 
         # Pagination
@@ -289,15 +311,21 @@ class StudentQuestions(APIView):
             offset = 0
 
         total = qs.count()
-        items = qs[offset:offset+limit]
-        data = QuestionLiteSerializer(items, many=True).data
+        items = qs[offset:offset + limit]
+
         if full_flag:
             data = QuestionDetailSerializer(items, many=True).data
         else:
             data = QuestionLiteSerializer(items, many=True).data
 
-        resp = {"total": total, "limit": limit, "offset": offset, "items": data}
-        
+        resp = {
+            "total":  total,
+            "limit":  limit,
+            "offset": offset,
+            "items":  data,
+        }
+
+        # ===== Facets (نفس المفاتيح القديمة بالظبط) =====
         if facets_flag:
             base_qs = qs.order_by()  # clear ordering for distinct performance/safety
 
@@ -314,12 +342,21 @@ class StudentQuestions(APIView):
                 "question_types": distinct_list(base_qs, "question_type", drop_empty=True),
                 "source_types":   distinct_list(base_qs, "source_type",   drop_empty=True),
                 "part_types":     distinct_list(base_qs, "part_type",     drop_empty=True),
-                "exam_kinds":     distinct_list(base_qs.exclude(exam_kind__isnull=True).exclude(exam_kind=""), "exam_kind"),
-                "exam_years":     sorted(distinct_list(base_qs.exclude(exam_year__isnull=True), "exam_year", as_int=True), reverse=True),
+                "exam_kinds":     distinct_list(
+                    base_qs.exclude(exam_kind__isnull=True).exclude(exam_kind=""),
+                    "exam_kind"
+                ),
+                "exam_years":     sorted(
+                    distinct_list(
+                        base_qs.exclude(exam_year__isnull=True),
+                        "exam_year",
+                        as_int=True
+                    ),
+                    reverse=True
+                ),
                 "has_tbl":        base_qs.filter(is_tbl=True).exists(),
                 "has_flipped":    base_qs.filter(is_flipped=True).exists(),
             }
-
 
         return Response(resp, status=200)
 
@@ -425,6 +462,11 @@ class FlashCardListCreate(APIView):
 
 
     def post(self, request):
+        if not can_use_flashcards(request.user):
+            return Response(
+                {"detail": "Your current plan does not allow creating flashcards."},
+                status=403,
+            )
         data = request.data.copy()
         # السماح بتمرير lesson_id/subject_id بالأرقام
         data["owner_type"] = "user"
@@ -713,7 +755,58 @@ class LessonProgressIDs(APIView):
         return Response({"ids": ids}, status=200)
 
 
+class LessonProgressList(APIView):
+    """
+    GET /api/v1/edu/lessons/progress/
+    - يرجّع الدروس اللى الطالب خلّصها (is_done=True) فى سنّته
+      مع pagination: total / limit / offset / items
+    """
+    permission_classes = [IsAuthenticated, SingleDeviceOnly]
 
+    def get(self, request):
+        year = _get_user_year(request)
+        if not year:
+            return Response({"total": 0, "limit": 0, "offset": 0, "items": []}, status=200)
+
+        qs = (
+            LessonProgress.objects
+            .filter(
+                user=request.user,
+                is_done=True,
+                lesson__subject__module__semester__year=year,
+                lesson__subject__module__is_ready=True,  # ✅ نفس منطق الباقى
+            )
+        )
+
+        subject_id = request.query_params.get("subject_id")
+        lesson_id  = request.query_params.get("lesson_id")
+
+        if subject_id:
+            qs = qs.filter(lesson__subject_id=subject_id)
+        if lesson_id:
+            qs = qs.filter(lesson_id=lesson_id)
+
+        # pagination زى FavoriteLessonList
+        try:
+            limit = max(1, min(int(request.query_params.get("limit", 50)), 200))
+        except Exception:
+            limit = 50
+        try:
+            offset = max(0, int(request.query_params.get("offset", 0)))
+        except Exception:
+            offset = 0
+
+        total = qs.count()
+        items_qs = (
+            qs.select_related("lesson", "lesson__subject")
+              .order_by("-created_at", "-id")[offset:offset+limit]
+        )
+
+        data = LessonProgressSerializer(items_qs, many=True).data
+        return Response(
+            {"total": total, "limit": limit, "offset": offset, "items": data},
+            status=200,
+        )
 
 
 class LessonProgressCountView(APIView):

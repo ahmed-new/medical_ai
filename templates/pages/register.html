@@ -1,55 +1,132 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}Create account{% endblock %}
+
+{% block extra_head %}
+<style>
+  .reg-hero {
+    background: url("{% static 'logos/landing3.png' %}") center/cover no-repeat;
+    min-height: 420px;
+    border-radius: 24px;
+    overflow: hidden;
+    background: url("{% static 'logos/landing3.png' %}") center/cover no-repeat;
+    box-shadow: 0 12px 32px rgba(0,0,0,.15);
+  }
+  .reg-hero::before {
+    content: "";
+    position: absolute; inset: 0;
+    background: linear-gradient(120deg, rgba(58,111,248,.65), rgba(76,201,240,.35));
+    mix-blend-mode: multiply;
+  }
+  .reg-hero-content {
+    position: absolute; inset: 0;
+    display: flex; align-items: flex-end; justify-content: flex-start;
+    padding: 24px;
+    color: #fff;
+  }
+  .reg-hero .brand {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,.15);
+    border: 1px solid rgba(255,255,255,.25);
+    padding: 8px 14px; border-radius: 999px;
+    backdrop-filter: blur(3px);
+  }
+
+  /* Card + form */
+  .reg-card {
+    border-radius: 24px;
+    box-shadow: 0 12px 32px rgba(15,23,42,.08);
+  }
+  .reg-title {
+    font-weight: 800;
+    letter-spacing: .3px;
+    color: var(--brand-primary);
+  }
+  .form-floating > label {
+    color: var(--muted);
+  }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="row justify-content-center">
-  <div class="col-12 col-md-6 col-lg-5">
-    <div class="card-soft p-4">
-      <h1 class="h5 mb-3">Create account</h1>
-
-      {% if messages %}
-        {% for m in messages %}<div class="alert alert-{{ m.tags|default:'danger' }}">{{ m }}</div>{% endfor %}
-      {% endif %}
-
-      <form method="post">
-        {% csrf_token %}
-
-        <div class="mb-2">
-          <label class="form-label">Username</label>
-          <input name="username" class="form-control" value="{{ form.username|default:'' }}" required>
+<div class="container my-4 my-lg-5">
+  <div class="row g-4 align-items-center">
+    <!-- Left: Hero -->
+    <div class="col-12 col-lg-6">
+      <div class="reg-hero">
+        <div class="reg-hero-content">
+          <div>
+            <div class="brand mb-2">
+              <img src="{% static 'logos/Axonelix.png' %}" alt="Axonelix" style="width: 22px; height: 22px;">
+              <span class="fw-semibold">Axonelix</span>
+            </div>
+            <h2 class="display-6 mb-2">Start your medical journey the smart way</h2>
+            <p class="mb-0">
+              Join thousands of students who trust Axonelix to stay organized,
+              learn faster, and pass with confidence.
+            </p>
+          </div>
         </div>
+      </div>
+    </div>
 
-        <div class="mb-2">
-          <label class="form-label">Email</label>
-          <input name="email" type="email" class="form-control" value="{{ form.email|default:'' }}" required>
+    <!-- Right: Form -->
+    <div class="col-12 col-lg-6">
+      <div class="card reg-card p-4 p-lg-5">
+        <h1 class="reg-title h4 mb-3">Create account</h1>
+        <p class="text-muted mb-4">It’s free to get started — takes less than a minute.</p>
+
+        {% if messages %}
+          {% for m in messages %}
+            <div class="alert alert-{{ m.tags|default:'danger' }} mb-3">{{ m }}</div>
+          {% endfor %}
+        {% endif %}
+
+        <form method="post" class="needs-validation" novalidate>
+          {% csrf_token %}
+
+          <div class="form-floating mb-3">
+            <input id="reg-username" name="username" class="form-control" placeholder="Username" value="{{ form.username|default:'' }}" required autocomplete="username">
+            <label for="reg-username">Username</label>
+          </div>
+
+          <div class="form-floating mb-3">
+            <input id="reg-email" name="email" type="email" class="form-control" placeholder="name@example.com" value="{{ form.email|default:'' }}" required autocomplete="email">
+            <label for="reg-email">Email</label>
+          </div>
+
+          <div class="form-floating mb-3">
+            <input id="reg-phone" name="phone_number" class="form-control" placeholder="Phone (optional)" value="{{ form.phone_number|default:'' }}" autocomplete="tel">
+            <label for="reg-phone">Phone (optional)</label>
+          </div>
+
+          <div class="form-floating mb-3">
+            <select id="reg-year" name="study_year" class="form-select" required>
+              <option value="" disabled {% if not form.study_year %}selected{% endif %}>Select your year</option>
+              <option value="y1" {% if form.study_year == "y1" %}selected{% endif %}>Year 1</option>
+              <option value="y2" {% if form.study_year == "y2" %}selected{% endif %}>Year 2</option>
+              <option value="y3" {% if form.study_year == "y3" %}selected{% endif %}>Year 3</option>
+              <option value="y4" {% if form.study_year == "y4" %}selected{% endif %}>Year 4</option>
+              <option value="y5" {% if form.study_year == "y5" %}selected{% endif %}>Year 5</option>
+            </select>
+            <label for="reg-year">Study year</label>
+          </div>
+
+          <div class="form-floating mb-4">
+            <input id="reg-pass" name="password" type="password" class="form-control" placeholder="Password" required minlength="6" autocomplete="new-password">
+            <label for="reg-pass">Password</label>
+          </div>
+
+          <button class="btn btn-primary w-100">
+            Create account
+          </button>
+        </form>
+
+        <div class="text-center mt-3">
+          <a href="{% url 'web_login' %}" class="text-muted small">
+            Already have an account? Sign in
+          </a>
         </div>
-
-        <div class="mb-2">
-          <label class="form-label">Phone (optional)</label>
-          <input name="phone_number" class="form-control" value="{{ form.phone_number|default:'' }}">
-        </div>
-
-        <div class="mb-2">
-          <label class="form-label">Study year <span class="text-danger">*</span></label>
-          <select name="study_year" class="form-select" required>
-            <option value="" disabled {% if not form.study_year %}selected{% endif %}>Select your year</option>
-            <option value="y1" {% if form.study_year == "y1" %}selected{% endif %}>Year 1</option>
-            <option value="y2" {% if form.study_year == "y2" %}selected{% endif %}>Year 2</option>
-            <option value="y3" {% if form.study_year == "y3" %}selected{% endif %}>Year 3</option>
-            <option value="y4" {% if form.study_year == "y4" %}selected{% endif %}>Year 4</option>
-            <option value="y5" {% if form.study_year == "y5" %}selected{% endif %}>Year 5</option>
-          </select>
-        </div>
-
-        <div class="mb-3">
-          <label class="form-label">Password</label>
-          <input name="password" type="password" class="form-control" required minlength="6">
-        </div>
-
-        <button class="btn btn-primary w-100">Create account</button>
-      </form>
-
-      <div class="text-center mt-3">
-        <a href="/login/" class="text-muted small">Already have an account? Sign in</a>
       </div>
     </div>
   </div>

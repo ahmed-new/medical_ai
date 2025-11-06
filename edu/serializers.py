@@ -1,6 +1,6 @@
 # edu/serializers.py
 from rest_framework import serializers
-from .models import Year, Semester, Module, Subject, Chapter,Lesson ,Question, QuestionOption,FlashCard,FavoriteLesson ,PlannerTask,StudySession
+from .models import Year, Semester, Module, Subject, Chapter,Lesson ,Question, QuestionOption,FlashCard,FavoriteLesson ,PlannerTask,StudySession,LessonProgress
 
 class YearSerializer(serializers.ModelSerializer):
     class Meta:
@@ -170,3 +170,18 @@ class StudySessionSerializer(serializers.ModelSerializer):
 
 class QuestionAttemptCreateSerializer(serializers.Serializer):
     is_correct = serializers.BooleanField(required=True)
+
+
+
+
+class LessonProgressSerializer(serializers.ModelSerializer):
+    # نرجّع الدرس كـ Lite زي الـ FavoriteLessonSerializer
+    lesson = serializers.SerializerMethodField()
+
+    class Meta:
+        model = LessonProgress
+        fields = ["id", "lesson", "created_at"]
+
+    def get_lesson(self, obj):
+        from .serializers import LessonLiteSerializer
+        return LessonLiteSerializer(obj.lesson).data

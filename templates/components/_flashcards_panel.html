@@ -1,43 +1,55 @@
 <!-- {# templates/components/_flashcards_panel.html
-   expects: lesson_id, flashcards (list of dicts), optional: mine (bool)
+     expects: lesson_id, flashcards (list of dicts), optional: mine (bool)
 #} -->
+{% load static %}
 
 <div id="fc-panel">
 
   {# ------------ Create form ------------ #}
+  {# -------- Create form (My flashcards only) -------- #}
+{% if can_create_flashcards %}
   <form
-  class="row g-3 align-items-start mb-3"
-  hx-post="{% url 'web_flashcards_create' lesson_id=lesson_id %}"
-  hx-target="#fc-list"
-  hx-swap="afterbegin"
-  hx-indicator="#fc-add-spin"
-  hx-disabled-elt="button"
-  hx-on="htmx:afterSwap: this.reset()"
->
-  <div class="col-12 col-lg-5">
-    <label class="form-label fw-semibold">Question</label>
-    <textarea name="question" rows="4" class="form-control" required
-              placeholder="Front / question..."></textarea>
-  </div>
+    class="row g-3 align-items-start mb-3"
+    hx-post="{% url 'web_flashcards_create_browse' lesson_id=lesson_id %}"
+    hx-target="#fc-mine-list"
+    hx-swap="afterbegin"
+    hx-indicator="#fc-add-spin"
+    hx-disabled-elt="button"
+    hx-on="htmx:afterSwap: this.reset()"
+  >
+    {% csrf_token %}
+    <div class="col-12 col-lg-5">
+      <label class="form-label fw-semibold">Question</label>
+      <textarea name="question" rows="3" class="form-control" required
+                placeholder="Front / question..."></textarea>
+    </div>
 
-  <div class="col-12 col-lg-5">
-    <label class="form-label fw-semibold">Answer</label>
-    <textarea name="answer" rows="4" class="form-control"
-              placeholder="Back / answer..."></textarea>
-  </div>
+    <div class="col-12 col-lg-5">
+      <label class="form-label fw-semibold">Answer</label>
+      <textarea name="answer" rows="3" class="form-control"
+                placeholder="Back / answer..."></textarea>
+    </div>
 
-  <div class="col-6 col-lg-1">
-    <label class="form-label">Order</label>
-    <input type="number" name="order" class="form-control" value="1" min="1">
-  </div>
+    <div class="col-6 col-lg-1">
+      <label class="form-label">Order</label>
+      <input type="number" name="order" class="form-control" value="1" min="1">
+    </div>
 
-  <div class="col-6 col-lg-1 d-flex align-items-end">
-    <button class="btn btn-primary w-100">
-      <span id="fc-add-spin" class="spinner-border spinner-border-sm me-1 htmx-indicator" role="status"></span>
-      Add
-    </button>
+    <div class="col-6 col-lg-1 d-flex align-items-end">
+      <button class="btn btn-primary w-100">
+        <span id="fc-add-spin"
+              class="spinner-border spinner-border-sm me-1 htmx-indicator"
+              role="status"></span>
+        Add
+      </button>
+    </div>
+  </form>
+{% else %}
+  <div class="alert alert-info small mb-3">
+    Flashcard creation is available for Premium plans.  
+    You can still review existing flashcards in this lesson.
   </div>
-</form>
+{% endif %}
 
 
   {# ------------ Mine only filter ------------ #}
@@ -58,33 +70,7 @@
   <div id="fc-list" class="fc-grid">
     {% if flashcards and flashcards|length %}
       {% for fc in flashcards %}
-        <div class="fc-flip" id="fc-{{ fc.id }}">
-          <div class="fc-inner" data-flip>
-            <div class="fc-front">
-              <div class="fc-title small text-muted mb-1">Front</div>
-              <div class="fc-text">{{ fc.question }}</div>
-            </div>
-            <div class="fc-back">
-              <div class="fc-title small text-muted mb-1">Back</div>
-              <div class="fc-text">
-                {% if fc.answer %}{{ fc.answer }}{% else %}<span class="text-muted">— No answer —</span>{% endif %}
-              </div>
-              <div class="d-flex justify-content-end mt-3">
-                {% if fc.owner_type == "user" %}
-                  <button class="btn btn-outline-danger btn-sm"
-                          hx-delete="{% url 'web_flashcard_delete' pk=fc.id %}"
-                          hx-target="#fc-{{ fc.id }}"
-                          hx-swap="outerHTML">
-                    <span class="spinner-border spinner-border-sm me-1 htmx-indicator" role="status"></span>
-                    Delete
-                  </button>
-                {% else %}
-                  <span class="badge text-bg-light">Admin</span>
-                {% endif %}
-              </div>
-            </div>
-          </div>
-        </div>
+        {% include "components/flashcards/_my_flashcard_item.html" with fc=fc %}
       {% endfor %}
     {% else %}
       <div class="alert alert-secondary mb-0">No flashcards yet.</div>
@@ -99,69 +85,192 @@
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
     gap:16px;
   }
-  .fc-flip{
-    perspective: 1200px;
-  }
+  .fc-flip{ perspective:1200px; }
   .fc-inner{
     position:relative;
     width:100%;
-    min-height: 180px;
-    transform-style: preserve-3d;
+    min-height:180px;
+    transform-style:preserve-3d;
     transition: transform .6s cubic-bezier(.2,.6,.2,1);
-    cursor: pointer;
+    cursor:pointer;
   }
   .fc-inner.flipped{ transform: rotateY(180deg); }
-
-  .fc-front, .fc-back{
+  .fc-front,.fc-back{
     position:absolute; inset:0;
     background:#062d8e; color:#eaeefc;
     border:1px solid rgba(148,163,184,.35);
     border-radius:14px;
     padding:14px;
-    backface-visibility: hidden;
-    box-shadow: 0 8px 24px rgba(15,23,42,.25);
+    backface-visibility:hidden;
+    box-shadow:0 8px 24px rgba(15,23,42,.25);
     display:flex; flex-direction:column;
   }
-  .fc-back{
-    transform: rotateY(180deg);
-  }
-
-  .fc-title{ opacity:.75; }
+  .fc-back{ transform: rotateY(180deg); }
+  .fc-title{ opacity:.75; margin-bottom:6px; }
   .fc-text{
     white-space:pre-wrap;
     line-height:1.4;
   }
-
-  /* Small helper for htmx spinner visibility inside buttons */
-   .htmx-indicator{ display:none; }
+  .htmx-indicator{ display:none; }
   .htmx-request .htmx-indicator{ display:inline-block !important; }
 </style>
 
-{# ------------ JS: toggle flip & rebind after HTMX swaps ------------ #}
+{# ------------ JS: flip + edit/cancel logic ------------ #}
 <script>
 (function(){
   function bindFlips(root){
     root.querySelectorAll('[data-flip]').forEach(el=>{
-      // لو اتحط مرتين ما نكررش الليسنر
       if (el._flipBound) return;
       el._flipBound = true;
-      el.addEventListener('click', (e)=>{
-        // ما نقلبش الكارت لو بنضغط زرار جواه (زي Delete)
-        if (e.target.closest('button, a')) return;
+      el.addEventListener('click',(e)=>{
+        if (e.target.closest('button,a,textarea,input,form')) return;
         el.classList.toggle('flipped');
       });
     });
   }
 
-  const panel = document.getElementById('fc-panel');
-  if (panel) bindFlips(panel);
+  function bindEditToggles(root){
+    root.querySelectorAll('.fc-edit-toggle').forEach(btn=>{
+      if (btn.dataset.bound==="1") return;
+      btn.dataset.bound="1";
+      btn.addEventListener('click',()=>{
+        const back=btn.closest('.fc-back');
+        if(!back) return;
+        const view=back.querySelector('.fc-view');
+        const form=back.querySelector('.fc-edit');
+        if(!view||!form) return;
+        view.classList.add('d-none');
+        form.classList.remove('d-none');
+      });
+    });
+    root.querySelectorAll('.fc-edit-cancel').forEach(btn=>{
+      if (btn.dataset.bound==="1") return;
+      btn.dataset.bound="1";
+      btn.addEventListener('click',()=>{
+        const back=btn.closest('.fc-back');
+        if(!back) return;
+        const view=back.querySelector('.fc-view');
+        const form=back.querySelector('.fc-edit');
+        if(!view||!form) return;
+        form.classList.add('d-none');
+        view.classList.remove('d-none');
+      });
+    });
+  }
 
-  // لما نضيف كارت جديد أو نفلتر/نحذف — نربط تاني
+  function rebindAll(){
+    const panel=document.getElementById('fc-panel');
+    if(!panel) return;
+    bindFlips(panel);
+    bindEditToggles(panel);
+  }
+
+  document.addEventListener('DOMContentLoaded',rebindAll);
+  document.body.addEventListener('htmx:afterSwap',(e)=>{
+    const panel=document.getElementById('fc-panel');
+    if(!panel) return;
+    if(e.target===panel||panel.contains(e.target)){ rebindAll(); }
+  });
+})();
+</script>
+
+{# ------------ JS: flip + tabs + edit + reset form ------------ #}
+<script>
+(function(){
+  // ========= Flip =========
+  function bindFlips(root){
+    root.querySelectorAll('[data-flip]').forEach(el=>{
+      if (el._flipBound) return;
+      el._flipBound = true;
+      el.addEventListener('click', (e)=>{
+        if (e.target.closest('button, a, textarea, input, form')) return;
+        el.classList.toggle('flipped');
+      });
+    });
+  }
+
+  // ========= Tabs (Admin / My) =========
+  function bindTabs(){
+    const tabs = document.querySelectorAll('#fc-tabs [data-target]');
+    const sections = document.querySelectorAll('.fc-section');
+    if (!tabs.length) return;
+
+    tabs.forEach(btn=>{
+      if (btn._tabBound) return;
+      btn._tabBound = true;
+      btn.addEventListener('click', ()=>{
+        tabs.forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+
+        const target = btn.getAttribute('data-target');
+        sections.forEach(sec=>{
+          if ('#'+sec.id === target){
+            sec.classList.add('show','active');
+          } else {
+            sec.classList.remove('show','active');
+          }
+        });
+      });
+    });
+  }
+
+  // ========= Edit / Cancel =========
+  function bindEditToggles(root){
+    root.querySelectorAll('.fc-edit-toggle').forEach(btn=>{
+      if (btn.dataset.bound === "1") return;
+      btn.dataset.bound = "1";
+      btn.addEventListener('click', ()=>{
+        const back = btn.closest('.fc-back');
+        if (!back) return;
+        const view = back.querySelector('.fc-view');
+        const form = back.querySelector('.fc-edit');
+        if (!view || !form) return;
+        view.classList.add('d-none');
+        form.classList.remove('d-none');
+      });
+    });
+
+    root.querySelectorAll('.fc-edit-cancel').forEach(btn=>{
+      if (btn.dataset.bound === "1") return;
+      btn.dataset.bound = "1";
+      btn.addEventListener('click', ()=>{
+        const back = btn.closest('.fc-back');
+        if (!back) return;
+        const view = back.querySelector('.fc-view');
+        const form = back.querySelector('.fc-edit');
+        if (!view || !form) return;
+        form.classList.add('d-none');
+        view.classList.remove('d-none');
+      });
+    });
+  }
+
+  function rebindAll(){
+    const panel = document.getElementById('fc-panel');
+    if (!panel) return;
+    bindFlips(panel);
+    bindTabs();
+    bindEditToggles(panel);
+  }
+
+  // أول تحميل
+  document.addEventListener('DOMContentLoaded', rebindAll);
+  rebindAll();
+
+  // بعد أى swap من HTMX جوه panel
   document.body.addEventListener('htmx:afterSwap', (e)=>{
-    if (!e.target) return;
-    if (e.target.id === 'fc-list' || e.target.id === 'tab-flashcards' || e.target.id === 'fc-panel') {
-      bindFlips(e.target);
+    const panel = document.getElementById('fc-panel');
+    if (!panel) return;
+    if (e.target === panel || panel.contains(e.target)) {
+      rebindAll();
+    }
+
+    // لو اللى اتحدّث هو قائمة كروتّى → صفّر الفورم يدويًا احتياطًا
+    if (e.target.id === 'fc-mine-list') {
+      const form = panel.querySelector('form');
+      if (form) form.reset();
     }
   });
 })();
 </script>
+

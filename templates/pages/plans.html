@@ -1,11 +1,77 @@
 {% extends "base.html" %}
 
+{% block extra_head %}
+<style>
+  .pricing-hero {
+    background: var(--gradient-primary);
+    border-radius: 14px;
+    padding: 16px 18px;
+    color: #0d1b2a;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .pricing-hero .title {
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin-bottom: 4px;
+  }
+  .pricing-hero .badges .badge { margin-right: 6px; }
+
+  .pricing-card {
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    transition: transform 120ms ease, box-shadow 120ms ease;
+    background: #fff;
+  }
+  .pricing-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.06);
+  }
+  .pricing-card .price {
+    font-size: 1.6rem;
+    line-height: 1.2;
+  }
+  .pricing-card .duration {
+    opacity: 0.8;
+  }
+  .features .fi {
+    display: inline-block;
+    width: 1.2rem;
+    text-align: center;
+    margin-right: 6px;
+  }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container py-3" style="max-width: 900px;">
-  <div class="d-flex justify-content-between align-items-center mb-3">
+<div class="container py-4" style="max-width: 1000px;">
+  <div class="pricing-hero mb-3">
     <div>
-      <h3 class="mb-0">Plans</h3>
-      <small class="text-muted">Choose the plan that fits you</small>
+      <div class="title">Choose the plan that fits you</div>
+      <div class="badges">
+        <span class="badge bg-primary-subtle text-primary">Current: {{ current_plan|default:"none"|title }}</span>
+        {% if is_active %}
+          <span class="badge bg-success-subtle text-success">Subscription Active</span>
+        {% else %}
+          <span class="badge bg-secondary-subtle text-secondary">No active subscription</span>
+        {% endif %}
+      </div>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      {% if not is_active %}
+      <form
+        hx-post="{% url 'web_plans_start_trial' %}"
+        hx-target="#plans-messages"
+        hx-swap="innerHTML"
+        class="d-inline-block mb-0">
+        <button class="btn btn-outline-success btn-sm" type="submit">
+          <span class="spinner-border spinner-border-sm me-1 htmx-indicator" role="status"></span>
+          Start free trial
+        </button>
+      </form>
+      {% endif %}
     </div>
   </div>
 
@@ -15,52 +81,53 @@
     {% for p in plans %}
       {% with code=p.code|lower %}
       <div class="col-md-4">
-        <div class="card-soft h-100 p-3 d-flex flex-column">
+        <div class="card-soft pricing-card h-100 p-3 d-flex flex-column">
           <div class="d-flex justify-content-between align-items-start mb-2">
             <h5 class="mb-0">{{ p.name }}</h5>
             {% if current_plan == code %}
               <span class="badge bg-success-subtle text-success">Current</span>
+            {% else %}
+              {% if code == "premium" %}
+                <span class="badge bg-primary-subtle text-primary">Recommended</span>
+              {% elif code == "advanced" %}
+                <span class="badge bg-warning-subtle text-warning">Best Value</span>
+              {% endif %}
             {% endif %}
           </div>
           <div class="mb-2">
-            <div class="fs-4 fw-semibold">{{ p.price_egp }} EGP</div>
-            <div class="text-muted small">for {{ p.duration_days }} days</div>
+            <div class="price fw-semibold">{{ p.price_egp }} EGP</div>
+            <div class="text-muted small duration">for {{ p.duration_days }} days</div>
           </div>
 
           {% if code == "basic" %}
-            <ul class="text-muted small mb-3 ps-3">
-              <li>Access to <strong>QBank</strong> questions only</li>
-              <li>AI daily limit: <strong>10</strong></li>
-              <li>Create personal flashcards</li>
-              <li>No Exam Review, TBL, Flipped, or Old Exams</li>
-              <li>No admin flashcards</li>
+            <ul class="features text-muted small mb-3 ps-3">
+              <li><span class="fi">🧠</span> QBank questions only</li>
+              <li><span class="fi">🤖</span> AI daily limit: <strong>10</strong></li>
+              <li><span class="fi">🗂️</span> Create personal flashcards</li>
+              <li><span class="fi">⛔</span> No Exam Review, TBL, Flipped, Old Exams</li>
+              <li><span class="fi">⛔</span> No admin flashcards</li>
             </ul>
-
           {% elif code == "premium" %}
-            <ul class="text-muted small mb-3 ps-3">
-              <li>Access to <strong>QBank</strong> and <strong>Exam Review</strong></li>
-              <li>AI daily limit: <strong>30</strong></li>
-              <li>View admin flashcards + create personal ones</li>
-              <li>No TBL, Flipped, or Old Exams</li>
-              <li>Full access to lesson content</li>
+            <ul class="features text-muted small mb-3 ps-3">
+              <li><span class="fi">🧠</span> QBank + Exam Review</li>
+              <li><span class="fi">🤖</span> AI daily limit: <strong>30</strong></li>
+              <li><span class="fi">📚</span> Admin + personal flashcards</li>
+              <li><span class="fi">⛔</span> No TBL, Flipped, Old Exams</li>
+              <li><span class="fi">📖</span> Full lesson content access</li>
             </ul>
-
           {% elif code == "advanced" %}
-            <ul class="text-muted small mb-3 ps-3">
-              <li>Access to <strong>all question sources</strong>:
-                QBank, Exam Review, TBL, Flipped, Old Exams
-              </li>
-              <li>AI daily limit: <strong>100</strong></li>
-              <li>View admin + personal flashcards</li>
-              <li>Full lesson content access</li>
-              <li>Everything in previous plans included</li>
+            <ul class="features text-muted small mb-3 ps-3">
+              <li><span class="fi">🧠</span> All sources: QBank, Exam Review, TBL, Flipped, Old Exams</li>
+              <li><span class="fi">🤖</span> AI daily limit: <strong>100</strong></li>
+              <li><span class="fi">📚</span> Admin + personal flashcards</li>
+              <li><span class="fi">📖</span> Full lesson content access</li>
+              <li><span class="fi">✅</span> Includes everything from previous plans</li>
             </ul>
-
           {% else %}
-            <ul class="text-muted small mb-3 ps-3">
-              <li>No question access</li>
-              <li>No AI usage</li>
-              <li>No flashcards or materials</li>
+            <ul class="features text-muted small mb-3 ps-3">
+              <li><span class="fi">⛔</span> No question access</li>
+              <li><span class="fi">⛔</span> No AI usage</li>
+              <li><span class="fi">⛔</span> No flashcards or materials</li>
             </ul>
           {% endif %}
 
@@ -85,19 +152,8 @@
     {% endfor %}
   </div>
 
-  {% if not is_active %}
-    <div class="mt-4">
-      <form
-        hx-post="{% url 'web_plans_start_trial' %}"
-        hx-target="#plans-messages"
-        hx-swap="innerHTML"
-        class="d-inline-block">
-        <button class="btn btn-outline-success btn-sm" type="submit">
-          <span class="spinner-border spinner-border-sm me-1 htmx-indicator" role="status"></span>
-          Start free trial
-        </button>
-      </form>
-    </div>
-  {% endif %}
+  <div class="text-muted small mt-3">
+    Prices include applicable taxes. You can change plans anytime.
+  </div>
 </div>
 {% endblock %}

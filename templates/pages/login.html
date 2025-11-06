@@ -1,27 +1,100 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}Login{% endblock %}
+
+{% block extra_head %}
+<style>
+  /* Left hero with the Axonelix logo */
+  .login-hero {
+    position: relative;
+    min-height: 360px;
+    border-radius: 24px;
+    overflow: hidden;
+    background: linear-gradient(135deg, #3a6ff8 0%, #4cc9f0 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    box-shadow: 0 12px 32px rgba(0,0,0,.12);
+  }
+  .login-hero .brand-img {
+    width: 220px;
+    max-width: 60%;
+    height: auto;
+    filter: drop-shadow(0 8px 20px rgba(0,0,0,.2));
+  }
+  .login-hero .tagline {
+    color: #ffffff;
+    text-align: center;
+    margin-top: 16px;
+    font-weight: 600;
+  }
+
+  .login-card {
+    border-radius: 24px;
+    box-shadow: 0 12px 32px rgba(15,23,42,.08);
+  }
+  .login-title {
+    color: var(--brand-primary);
+    font-weight: 800;
+    letter-spacing: .3px;
+  }
+  .form-floating .form-control {
+    border-radius: 12px;
+  }
+
+  @media (max-width: 768px) {
+    .login-hero { min-height: 240px; }
+    .login-hero .brand-img { width: 160px; }
+  }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="row justify-content-center">
-  <div class="col-12 col-md-5">
-    <div class="card-soft p-4">
-      <h1 class="h5 mb-3">Sign in</h1>
-      {% if messages %}
-        {% for m in messages %}<div class="alert alert-danger">{{ m }}</div>{% endfor %}
-      {% endif %}
-      <form method="post">
-        {% csrf_token %}
-        <div class="mb-2">
-          <label class="form-label">Username</label>
-          <input name="username" class="form-control" required>
+<div class="container my-4 my-lg-5">
+  <div class="row g-4 align-items-center">
+    <!-- Left: Logo hero -->
+    <div class="col-12 col-lg-6">
+      <div class="login-hero">
+        <div>
+          <img src="{% static 'logos/Axonelix.png' %}" alt="Axonelix" class="brand-img">
+          <div class="tagline">Welcome back — let’s continue your journey</div>
         </div>
-        <div class="mb-3">
-          <label class="form-label">Password</label>
-          <input name="password" type="password" class="form-control" required>
+      </div>
+    </div>
+
+    <!-- Right: Sign-in form -->
+    <div class="col-12 col-lg-6">
+      <div class="card login-card p-4 p-lg-5">
+        <h1 class="login-title h4 mb-3">Sign in</h1>
+        <p class="text-muted mb-4">Access your materials, questions, planner, and more.</p>
+
+        {% if messages %}
+          {% for m in messages %}<div class="alert alert-danger mb-3">{{ m }}</div>{% endfor %}
+        {% endif %}
+
+        <form method="post" class="needs-validation" novalidate>
+          {% csrf_token %}
+
+          <div class="form-floating mb-3">
+            <input id="login-username" name="username" class="form-control" placeholder="Username" required autocomplete="username">
+            <label for="login-username">Username</label>
+          </div>
+
+          <div class="form-floating mb-4">
+            <input id="login-password" name="password" type="password" class="form-control" placeholder="Password" required autocomplete="current-password">
+            <label for="login-password">Password</label>
+          </div>
+
+          <button class="btn btn-primary w-100">Sign in</button>
+        </form>
+
+        <div class="text-center mt-3">
+          <p class="text-muted small mb-2">
+            Don't have an account? <a href="{% url 'web_register' %}">Sign Up</a>
+          </p>
+          <a href="/" class="text-muted small">Back to site</a>
         </div>
-        <button class="btn btn-primary w-100">Sign in</button>
-      </form>
-      <div class="text-center mt-3">
-        <a href="/" class="text-muted small">Back to site</a>
       </div>
     </div>
   </div>

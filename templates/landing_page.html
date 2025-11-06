@@ -1,4 +1,408 @@
 {% extends "base.html" %}
+{% load static %}
 
+{% block content %}
 
-hello
+<style>
+  /* ===== Landing only styles ===== */
+  .landing-hero {
+    background: var(--gradient-primary);
+    color: #fff;
+    border-radius: 32px;
+    padding: 40px 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .landing-hero::before {
+    content: "";
+    position: absolute;
+    width: 260px;
+    height: 260px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.08);
+    top: -80px;
+    right: -80px;
+  }
+  .landing-hero::after {
+    content: "";
+    position: absolute;
+    width: 180px;
+    height: 180px;
+    border-radius: 50%;
+    background: rgba(0,0,0,.08);
+    bottom: -90px;
+    left: -40px;
+  }
+
+  .landing-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.12);
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+  }
+
+  .landing-hero-title {
+    font-size: 2.3rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+
+  .landing-hero-sub {
+    max-width: 460px;
+    font-size: 0.98rem;
+    opacity: .95;
+  }
+
+  .landing-hero-cta .btn {
+    min-width: 160px;
+  }
+
+  .landing-hero-media {
+    position: relative;
+  }
+
+  .landing-device-card {
+    position: relative;
+    border-radius: 28px;
+    background: #f7f8ff;
+    box-shadow: 0 18px 40px rgba(15,23,42,.35);
+    padding: 14px;
+    max-width: 320px;
+    margin-left: auto;
+  }
+  .landing-device-card img {
+    width: 100%;
+    border-radius: 24px;
+    display: block;
+  }
+  .landing-device-pill {
+    position: absolute;
+    left: -20px;
+    bottom: 18px;
+    background: var(--gradient-secondary);
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    box-shadow: 0 10px 30px rgba(0,0,0,.2);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+  }
+
+  .landing-device-pill span.badge {
+    background: rgba(255,255,255,.15);
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-size: 0.7rem;
+  }
+
+  /* Features */
+  .landing-section-title {
+    font-size: 1.4rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    color: var(--brand-primary);
+  }
+  .feature-card {
+    border-radius: 18px;
+    padding: 18px 18px 16px;
+    box-shadow: 0 10px 26px rgba(15,23,42,.06);
+  }
+  .feature-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 10px;
+    background: rgba(58,111,248,.08);
+    font-size: 1.3rem;
+  }
+
+  /* Steps */
+  .step-badge {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(58,111,248,.1);
+    color: var(--brand-primary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    margin-right: 8px;
+  }
+
+  .step-card {
+    border-radius: 18px;
+    padding: 18px 18px 14px;
+    background: #fff;
+    box-shadow: 0 8px 20px rgba(15,23,42,.05);
+  }
+
+  /* Pricing */
+  .plan-card {
+    border-radius: 26px;
+    padding: 32px 26px;
+  }
+  .plan-chip {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.16);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+  }
+
+  /* Final CTA */
+  .landing-final {
+    border-radius: 26px;
+    background: #fff;
+    box-shadow: 0 14px 32px rgba(15,23,42,.08);
+    padding: 32px 24px;
+  }
+
+  @media (max-width: 992px){
+    .landing-hero-title {
+      font-size: 1.9rem;
+    }
+    .landing-hero {
+      border-radius: 24px;
+      padding: 32px 18px;
+    }
+    .landing-device-card {
+      margin: 28px auto 0;
+    }
+    .landing-device-pill {
+      left: 12px;
+      bottom: -18px;
+    }
+  }
+</style>
+
+<div class="container py-4">
+
+  <!-- ========== HERO ========== -->
+  <section class="landing-hero mb-5">
+    <div class="row align-items-center g-4">
+      <div class="col-lg-6 text-start">
+        <div class="landing-badge mb-3">
+          <span>AXONELIX · Medical Hub</span>
+        </div>
+
+        <h1 class="landing-hero-title mb-3">
+          Study smarter.<br>
+          Not just harder.
+        </h1>
+
+        <p class="landing-hero-sub mb-4">
+          Structured medical materials, powerful question banks, flashcards, and an AI tutor — all connected
+          to your academic year and ready in a few clicks.
+        </p>
+
+        <ul class="list-unstyled small mb-4">
+          <li class="mb-1">✅ Organized by year, semester, module & lesson</li>
+          <li class="mb-1">✅ Practice questions with instant explanations</li>
+          <li class="mb-1">✅ Personal flashcards & intelligent study tracking</li>
+        </ul>
+
+        <div class="landing-hero-cta d-flex flex-wrap align-items-center gap-2">
+          <a href="{% url 'web_register' %}" class="btn btn-light">
+            Start Free Trial
+          </a>
+          <a href="{% url 'web_login' %}" class="btn btn-secondary">
+            Login
+          </a>
+          <span class="small ms-lg-2 text-white-50">
+            No long forms · cancel anytime
+          </span>
+        </div>
+      </div>
+
+      <div class="col-lg-6 landing-hero-media">
+        <div class="landing-device-card">
+          <img src="{% static 'logos/landing1.png' %}" alt="Axonelix mobile preview">
+        </div>
+        <div class="landing-device-pill">
+          <span class="badge">Study streak</span>
+          <span>Build trees with every 25 min 🌳</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== WHAT YOU GET ========== -->
+  <section class="mb-5">
+    <div class="text-center mb-4">
+      <div class="landing-section-title">WHAT YOU GET</div>
+      <p class="page-subtitle mb-0">
+        A complete toolkit that mirrors your mobile experience – but optimized for the web.
+      </p>
+    </div>
+
+    <div class="row g-4">
+      <div class="col-md-6 col-lg-3">
+        <div class="card feature-card h-100">
+          <div class="feature-icon">
+            📚
+          </div>
+          <h5 class="fw-bold mb-2">Medical Materials</h5>
+          <p class="small mb-0">
+            Lessons organized by year, semester & module with clear chapter breakdowns — the same tree you see in the app.
+          </p>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3">
+        <div class="card feature-card h-100">
+          <div class="feature-icon">
+            ❓
+          </div>
+          <h5 class="fw-bold mb-2">Question Banks</h5>
+          <p class="small mb-0">
+            MCQs & written questions with filters (chapters, exams, TBL, flipped) and instant correctness feedback.
+          </p>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3">
+        <div class="card feature-card h-100">
+          <div class="feature-icon">
+            🧠
+          </div>
+          <h5 class="fw-bold mb-2">Flashcards</h5>
+          <p class="small mb-0">
+            Admin decks + your own cards, editable inline with flipping animations to match the mobile flashcard flow.
+          </p>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3">
+        <div class="card feature-card h-100">
+          <div class="feature-icon">
+            🤖
+          </div>
+          <h5 class="fw-bold mb-2">AI Tutor</h5>
+          <p class="small mb-0">
+            Ask about any lesson or question directly from the floating AI widget — history-aware and tailored to your year.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== HOW IT WORKS + TRACKING IMAGE ========== -->
+  <section class="mb-5">
+    <div class="row g-4 align-items-center">
+      <div class="col-lg-6">
+        <div class="text-start mb-3">
+          <div class="landing-section-title">HOW IT WORKS</div>
+          <p class="page-subtitle mb-0">Three simple steps from signup to daily streaks.</p>
+        </div>
+
+        <div class="step-card mb-3">
+          <div class="d-flex align-items-start">
+            <div class="step-badge">1</div>
+            <div>
+              <h6 class="fw-bold mb-1">Sign up in seconds</h6>
+              <p class="small mb-0">
+                Create your account, choose your academic year, and instantly unlock a free trial — no complex setup.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-card mb-3">
+          <div class="d-flex align-items-start">
+            <div class="step-badge">2</div>
+            <div>
+              <h6 class="fw-bold mb-1">Study your way</h6>
+              <p class="small mb-0">
+                Jump into materials, quiz yourself with questions, flip through flashcards, or start a 25-min study tree.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="d-flex align-items-start">
+            <div class="step-badge">3</div>
+            <div>
+              <h6 class="fw-bold mb-1">Track & stay consistent</h6>
+              <p class="small mb-1">
+                Planner, streaks, study minutes and solved questions — all tracked automatically through your daily use.
+              </p>
+              <p class="small text-muted mb-0">
+                Your web dashboard mirrors the same tracking cards you see in the mobile app.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-6">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+          <img src="{% static 'logos/landing2.png' %}" alt="Tracking and planner preview" class="w-100">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PLANS & PRICING ========== -->
+  <section class="mb-5">
+    <div class="text-center mb-4">
+      <div class="landing-section-title">PLANS & PRICING</div>
+      <p class="page-subtitle mb-0">
+        One simple plan for serious medical students. Upgrade only when you’re ready.
+      </p>
+    </div>
+
+    <div class="row justify-content-center">
+      <div class="col-lg-5 col-md-7">
+        <div class="card card-gradient text-white plan-card text-start">
+          <span class="plan-chip mb-3">Most popular</span>
+          <h3 class="fw-bold mb-2">Plus Plan</h3>
+          <p class="mb-3">
+            Full access to all materials, question banks, flashcards, AI tutor, planner and streak tracking — on both web & mobile.
+          </p>
+          <ul class="small mb-4">
+            <li>Unlimited questions & explanations</li>
+            <li>All flashcard decks + personal cards</li>
+            <li>Study trees, streaks & planner tools</li>
+          </ul>
+          <a href="{% url 'web_plans' %}" class="btn btn-light">
+            View all details
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== FINAL CTA ========== -->
+  <section class="mb-4">
+    <div class="landing-final text-center">
+      <h2 class="display-6 fw-bold mb-2">Ready to start your next study session?</h2>
+      <p class="lead mb-3">
+        Join medical students who use Axonelix daily for materials, questions, flashcards and focused 25-minute trees.
+      </p>
+      <p class="small text-muted mb-3">
+        Start now on web, continue later on mobile — your progress, favorites and streaks stay perfectly in sync.
+      </p>
+      <a href="{% url 'web_register' %}" class="btn btn-primary btn-lg">
+        Start your free trial now
+      </a>
+    </div>
+  </section>
+
+</div>
+
+{% endblock %}

@@ -1,28 +1,84 @@
-<div class="card-soft p-3">
-  <h5 class="mb-3">Choose what you want to do</h5>
-  <div class="list-group">
-    <button
-      class="list-group-item list-group-item-action"
-      hx-get="{% url 'q_panel_subjects' %}?module_id={{ module_id }}&source=exams"
-      hx-target="#q-main-panel"
-      hx-swap="innerHTML"
-      hx-indicator="#q-loading"
-    >Exams</button>
+{# expects: module_id, allow_qbank, allow_exam_review, allow_old_exam #}
 
-    <button
-      class="list-group-item list-group-item-action"
-      hx-get="{% url 'q_panel_old_hub' %}?module_id={{ module_id }}"
-      hx-target="#q-main-panel"
-      hx-swap="innerHTML"
-      hx-indicator="#q-loading"
-    >Old Exams</button>
+<div class="card-soft p-4">
+  <h4 class="mb-3">Choose question source</h4>
 
-    <button
-      class="list-group-item list-group-item-action"
-      hx-get="{% url 'q_panel_examreview_hub' %}?module_id={{ module_id }}"
-      hx-target="#q-main-panel"
-      hx-swap="innerHTML"
-      hx-indicator="#q-loading"
-    >Exam review</button>
+  <div class="row g-3">
+
+    {# QBank #}
+    <div class="col-md-4">
+      <div class="card-soft h-100 p-3 d-flex flex-column">
+        <h5 class="mb-2">QBank</h5>
+        <p class="small text-muted mb-3">
+          Topic-based practice questions from lessons.
+        </p>
+
+        {% if allow_qbank %}
+          <button
+            class="btn btn-primary mt-auto"
+            hx-get="{% url 'q_panel_subjects' %}?module_id={{ module_id }}&source=exams"
+            hx-target="#q-main-panel"
+            hx-swap="innerHTML"
+            hx-indicator="#q-loading">
+            Open
+          </button>
+        {% else %}
+          <button class="btn btn-outline-secondary mt-auto" disabled>
+            Not available in your plan
+          </button>
+        {% endif %}
+      </div>
+    </div>
+
+    {# Exam review #}
+    <div class="col-md-4">
+      <div class="card-soft h-100 p-3 d-flex flex-column">
+        <h5 class="mb-2">Exam review</h5>
+        <p class="small text-muted mb-3">
+          Finals & Midterm style questions.
+        </p>
+
+        {% if allow_exam_review %}
+          <button
+            class="btn btn-primary mt-auto"
+            hx-get="{% url 'q_panel_examreview_hub' %}?module_id={{ module_id }}"
+            hx-target="#q-main-panel"
+            hx-swap="innerHTML"
+            hx-indicator="#q-loading">
+            Open
+          </button>
+        {% else %}
+          <button class="btn btn-outline-secondary mt-auto" disabled>
+            Upgrade to Premium to unlock
+          </button>
+        {% endif %}
+      </div>
+    </div>
+
+    {# Old exams #}
+    <div class="col-md-4">
+      <div class="card-soft h-100 p-3 d-flex flex-column">
+        <h5 class="mb-2">Old exams</h5>
+        <p class="small text-muted mb-3">
+          Full previous-year exams.
+        </p>
+
+        {% if allow_old_exam %}
+          <button
+            class="btn btn-primary mt-auto"
+            hx-get="{% url 'q_panel_old_hub' %}?module_id={{ module_id }}"
+            hx-target="#q-main-panel"
+            hx-swap="innerHTML"
+            hx-indicator="#q-loading">
+            Open
+          </button>
+        {% else %}
+          <button class="btn btn-outline-secondary mt-auto" disabled>
+            Available in Advanced plan
+          </button>
+        {% endif %}
+      </div>
+    </div>
+
   </div>
 </div>

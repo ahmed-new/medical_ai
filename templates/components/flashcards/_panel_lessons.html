@@ -1,4 +1,6 @@
-{# expects: chapter_id, subject_name, chapter_name, lessons #}
+<!-- {# templates/components/flashcards/_panel_lessons.html
+   expects: chapter_id, subject_id, subject_name, chapter_name, lessons #} -->
+
 <div class="d-flex justify-content-between align-items-center mb-3">
   <div>
     <h5 class="mb-0">
@@ -7,7 +9,7 @@
     <small class="text-muted">Choose a lesson to view its flashcards.</small>
   </div>
   <button class="btn btn-link btn-sm"
-          hx-get="{% url 'fc_panel_chapters' %}?subject_id={{ lessons.0.subject_id|default:'' }}&subject_name={{ subject_name|urlencode }}"
+          hx-get="{% url 'fc_panel_chapters' %}?subject_id={{ subject_id }}&subject_name={{ subject_name|urlencode }}"
           hx-target="#fc-main-panel"
           hx-swap="innerHTML"
           hx-indicator="#fc-main-spin">
@@ -20,7 +22,7 @@
     {% for l in lessons %}
       <button
         class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
-        hx-get="{% url 'fc_panel_flashcards' %}?lesson_id={{ l.id }}"
+        hx-get="{% url 'fc_panel_flashcards' %}?lesson_id={{ l.id }}&subject_id={{ subject_id }}"
         hx-target="#fc-main-panel"
         hx-swap="innerHTML"
         hx-indicator="#fc-main-spin"

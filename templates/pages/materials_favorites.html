@@ -1,49 +1,128 @@
 {% extends "base.html" %}
-{% block title %}Favorite lessons · Axonelix{% endblock %}
+{% load static %}
+{% block title %}Favorites · Axonelix{% endblock %}
+
+{% block extra_head %}
+<style>
+  .fav-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 12px;
+  }
+  .fav-toolbar {
+    display: grid; grid-template-columns: 1fr 220px 180px auto; gap: 10px;
+    margin-bottom: 16px;
+  }
+  @media (max-width: 768px) {
+    .fav-toolbar { grid-template-columns: 1fr 1fr; }
+  }
+  .fav-input, .fav-select, .fav-btn {
+    height: 38px; border-radius: 10px; border: 1px solid var(--border-color);
+    background: var(--bg-white); padding: 8px 12px;
+  }
+  .fav-btn {
+    display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
+    color: var(--brand-primary); border: 1px solid var(--border-color);
+    background: var(--bg-white);
+  }
+  .fav-btn.active { border-color: var(--brand-primary); box-shadow: 0 6px 16px rgba(0,0,0,.06); }
+  .badge-subject {
+    display: inline-block; border-radius: 999px; padding: 4px 10px;
+    background: rgba(76,201,240,.12); color: #0ea5e9; font-weight: 600; font-size: .85rem;
+  }
+  .fav-card {
+    border-radius: 16px; padding: 14px; background: var(--bg-white);
+    box-shadow: 0 12px 28px rgba(15,23,42,.07); transition: transform .12s ease, box-shadow .12s ease;
+    height: 100%;
+  }
+  .fav-card:hover { transform: translateY(-1px); box-shadow: 0 14px 36px rgba(15,23,42,.10); }
+  .fav-card .title { font-weight: 700; font-size: 1rem; margin: 6px 0 8px; color: var(--brand-primary); }
+  .fav-card .actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .fav-open {
+    border: 1px solid var(--border-color); padding: 6px 10px; border-radius: 10px;
+    text-decoration: none; color: var(--brand-primary); background: var(--bg-white);
+  }
+  .fav-open:hover { border-color: var(--brand-primary); }
+  .fav-empty { border-radius: 16px; padding: 24px; text-align: center; color: var(--muted); background: var(--bg-white); }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container py-3" style="max-width: 900px;">
-  <div class="d-flex justify-content-between align-items-center mb-3">
+<div class="container py-3" style="max-width: 1000px;">
+
+  <div class="fav-header">
     <div>
       <h3 class="mb-0">Favorite lessons</h3>
       <small class="text-muted">All lessons you marked as favorite.</small>
     </div>
-    <a href="/" class="btn btn-link btn-sm">← Back to home</a>
+    <a href="{% url 'web_home' %}" class="btn btn-link btn-sm">← Back to home</a>
   </div>
 
   {% if total == 0 %}
-    <div class="card-soft p-4 text-center text-muted">
+    <div class="fav-empty">
       You don't have any favorite lessons yet.
     </div>
   {% else %}
-    <div class="row g-3">
+
+    <!-- Toolbar -->
+    <div class="fav-toolbar">
+      <input id="fav-search" class="fav-input" type="search" placeholder="Search by title…">
+      <input id="fav-subject" class="fav-input" list="fav-subjects" placeholder="Filter by subject…">
+      <datalist id="fav-subjects">
+        {% for f in items %}
+          {% with subj=f.lesson.subject_name|default_if_none:"" %}
+            {% if not subj and f.lesson.subject and f.lesson.subject.name %}
+              {% with subj=f.lesson.subject.name %}{% endwith %}
+            {% endif %}
+            {% if subj %}<option value="{{ subj }}">{% endif %}
+          {% endwith %}
+        {% endfor %}
+      </datalist>
+      <select id="fav-sort" class="fav-select">
+        <option value="title-asc">Sort: Title (A→Z)</option>
+        <option value="title-desc">Sort: Title (Z→A)</option>
+      </select>
+      <div class="d-flex gap-2">
+        <button id="view-grid" class="fav-btn active" type="button">🔳 Grid</button>
+        <button id="view-list" class="fav-btn" type="button">📋 List</button>
+      </div>
+    </div>
+
+    <!-- Items -->
+    <div id="fav-list" class="row g-3">
       {% for f in items %}
-        <div class="col-12 col-md-6">
-          <a href="/materials/lesson/{{ f.lesson.id }}/"
-             class="card-soft p-3 d-block text-decoration-none h-100">
-
-            <div class="small text-muted mb-1">
-              {% if f.lesson.subject_name %}
-                {{ f.lesson.subject_name }}
-              {% elif f.lesson.subject and f.lesson.subject.name %}
-                {{ f.lesson.subject.name }}
-              {% else %}
-                Lesson
-              {% endif %}
+        {% with subj=f.lesson.subject_name|default_if_none:"" %}
+          {% if not subj and f.lesson.subject and f.lesson.subject.name %}
+            {% with subj=f.lesson.subject.name %}{% endwith %}
+          {% endif %}
+          <div class="col-12 col-md-6 col-lg-4 fav-item"
+               data-title="{{ f.lesson.title|lower }}"
+               data-subject="{{ subj|lower }}">
+            <div class="fav-card d-flex flex-column">
+              <div class="d-flex justify-content-between align-items-start">
+                <span class="badge-subject">
+                  {% if subj %}{{ subj }}{% else %}Lesson{% endif %}
+                </span>
+                <span id="fav-{{ f.lesson.id }}">
+                  {% include "components/_favorite_button.html" with lesson_id=f.lesson.id is_fav=True %}
+                </span>
+              </div>
+              <div class="title">{{ f.lesson.title }}</div>
+              <div class="text-muted small mb-2">Tap to open this lesson.</div>
+              <div class="actions mt-auto">
+                <a href="{% url 'web_lesson' f.lesson.id %}" class="fav-open">Open</a>
+              </div>
             </div>
-
-            <div class="fw-semibold mb-1">
-              {{ f.lesson.title }}
-            </div>
-
-            <div class="small text-muted">
-              Tap to open this lesson.
-            </div>
-          </a>
-        </div>
+          </div>
+        {% endwith %}
       {% endfor %}
     </div>
 
+    <!-- Empty after client-side filters -->
+    <div id="fav-empty-filter" class="fav-empty d-none">
+      No favorites match your filters.
+    </div>
+
+    <!-- Pagination -->
     <div class="d-flex justify-content-between align-items-center mt-3">
       <div class="text-muted small">
         Total: {{ total }}
@@ -57,6 +136,68 @@
         {% endif %}
       </div>
     </div>
+
   {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function() {
+    const search = document.getElementById('fav-search');
+    const subject = document.getElementById('fav-subject');
+    const sortSel = document.getElementById('fav-sort');
+    const viewGrid = document.getElementById('view-grid');
+    const viewList = document.getElementById('view-list');
+    const list = document.getElementById('fav-list');
+    const items = Array.from(document.querySelectorAll('.fav-item'));
+    const emptyFilter = document.getElementById('fav-empty-filter');
+
+    function applyFilters() {
+      const q = (search.value || '').trim().toLowerCase();
+      const subj = (subject.value || '').trim().toLowerCase();
+      let visibleCount = 0;
+      items.forEach(it => {
+        const matchesTitle = !q || it.dataset.title.includes(q);
+        const matchesSubj = !subj || it.dataset.subject === subj || it.dataset.subject.includes(subj);
+        const show = matchesTitle && matchesSubj;
+        it.classList.toggle('d-none', !show);
+        if (show) visibleCount++;
+      });
+      emptyFilter.classList.toggle('d-none', visibleCount !== 0);
+    }
+
+    function applySort() {
+      const v = sortSel.value;
+      const dir = v.endsWith('desc') ? -1 : 1;
+      const sorted = items.slice().sort((a,b) => {
+        const ta = a.dataset.title, tb = b.dataset.title;
+        return ta.localeCompare(tb) * dir;
+      });
+      sorted.forEach(el => list.appendChild(el));
+    }
+
+    function applyView(isList) {
+      viewGrid.classList.toggle('active', !isList);
+      viewList.classList.toggle('active', isList);
+      items.forEach(el => {
+        el.classList.toggle('col-lg-4', !isList);
+        el.classList.toggle('col-md-6', !isList);
+        el.classList.toggle('col-12', true);
+        el.classList.toggle('col-lg-12', isList);
+        el.classList.toggle('col-md-12', isList);
+      });
+    }
+
+    search && search.addEventListener('input', applyFilters);
+    subject && subject.addEventListener('input', applyFilters);
+    sortSel && sortSel.addEventListener('change', applySort);
+    viewGrid && viewGrid.addEventListener('click', () => applyView(false));
+    viewList && viewList.addEventListener('click', () => applyView(true));
+
+    // initial
+    applySort();
+    applyFilters();
+  })();
+</script>
 {% endblock %}

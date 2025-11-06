@@ -1,28 +1,65 @@
-<div class="card-soft p-3">
-  <h5 class="mb-3">Exam review</h5>
+{# expects: module_id, allow_exam_review, allow_tbl, allow_flipped #}
+
+<div class="card-soft p-4">
+  <h4 class="mb-3">Exam review</h4>
+  <p class="small text-muted mb-4">
+    Solve questions taken from real exams for this module.
+  </p>
+
   <div class="list-group">
-    <button
-      class="list-group-item list-group-item-action"
-      hx-get="{% url 'q_panel_years' %}?module_id={{ module_id }}&source=exam_review&kind=final"
-      hx-target="#q-main-panel"
-      hx-swap="innerHTML"
-      hx-indicator="#q-loading"
-    >Finals</button>
 
+    {# Finals #}
     <button
-      class="list-group-item list-group-item-action"
-      hx-get="{% url 'q_panel_years' %}?module_id={{ module_id }}&source=exam_review&kind=midterm"
-      hx-target="#q-main-panel"
-      hx-swap="innerHTML"
-      hx-indicator="#q-loading"
-    >MidTerm</button>
+      class="list-group-item list-group-item-action d-flex justify-content-between align-items-center
+             {% if not allow_exam_review %}disabled text-muted{% endif %}"
+      {% if allow_exam_review %}
+        hx-get="{% url 'q_panel_subjects' %}?module_id={{ module_id }}&source=exam_review&kind=final"
+        hx-target="#q-main-panel"
+        hx-swap="innerHTML"
+        hx-indicator="#q-loading"
+      {% endif %}
+      type="button">
+      <span>Finals</span>
+      {% if not allow_exam_review %}
+        <span class="badge bg-light text-muted">Premium+</span>
+      {% endif %}
+    </button>
 
+    {# MidTerm #}
     <button
-      class="list-group-item list-group-item-action"
-      hx-get="{% url 'q_panel_years' %}?module_id={{ module_id }}&source=exam_review&kind=tpl"
-      hx-target="#q-main-panel"
-      hx-swap="innerHTML"
-      hx-indicator="#q-loading"
-    >TPL & Flipped</button>
+      class="list-group-item list-group-item-action d-flex justify-content-between align-items-center
+             {% if not allow_exam_review %}disabled text-muted{% endif %}"
+      {% if allow_exam_review %}
+        hx-get="{% url 'q_panel_subjects' %}?module_id={{ module_id }}&source=exam_review&kind=midterm"
+        hx-target="#q-main-panel"
+        hx-swap="innerHTML"
+        hx-indicator="#q-loading"
+      {% endif %}
+      type="button">
+      <span>MidTerm</span>
+      {% if not allow_exam_review %}
+        <span class="badge bg-light text-muted">Premium+</span>
+      {% endif %}
+    </button>
+
+    {# TPL & Flipped #}
+    {% with allow_tpl_flipped=(allow_exam_review and (allow_tbl or allow_flipped)) %}
+      <button
+        class="list-group-item list-group-item-action d-flex justify-content-between align-items-center
+               {% if not allow_tpl_flipped %}disabled text-muted{% endif %}"
+        {% if allow_tpl_flipped %}
+          hx-get="{% url 'q_panel_subjects' %}?module_id={{ module_id }}&source=exam_review&kind=tpl_flipped"
+          hx-target="#q-main-panel"
+          hx-swap="innerHTML"
+          hx-indicator="#q-loading"
+        {% endif %}
+        type="button">
+        <span>TPL &amp; Flipped</span>
+        {% if not allow_tpl_flipped %}
+          <span class="badge bg-light text-muted">Advanced</span>
+        {% endif %}
+      </button>
+    {% endwith %}
+
   </div>
 </div>

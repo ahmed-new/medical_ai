@@ -1,11 +1,11 @@
-{# expects: subject_id, subject_name, chapters #}
+<!-- {# templates/components/flashcards/_panel_chapters.html #} -->
 <div class="d-flex justify-content-between align-items-center mb-3">
   <div>
     <h5 class="mb-0">{{ subject_name }}</h5>
     <small class="text-muted">Choose a chapter to view its lessons.</small>
   </div>
   <button class="btn btn-link btn-sm"
-          hx-get="{% url 'fc_panel_subjects' %}?module_id={{ chapters.0.subject.module_id|default:'' }}"
+          hx-get="{% url 'fc_panel_subjects' %}?module_id={{ request.GET.module_id|default:'' }}&module_name={{ request.GET.module_name|default:''|urlencode }}"
           hx-target="#fc-main-panel"
           hx-swap="innerHTML"
           hx-indicator="#fc-main-spin">
@@ -18,7 +18,7 @@
     {% for c in chapters %}
       <button
         class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
-        hx-get="{% url 'fc_panel_lessons' %}?chapter_id={{ c.id }}&subject_name={{ subject_name|urlencode }}&chapter_name={{ c.title|urlencode }}"
+        hx-get="{% url 'fc_panel_lessons' %}?chapter_id={{ c.id }}&subject_id={{ subject_id }}&subject_name={{ subject_name|urlencode }}&chapter_name={{ c.title|urlencode }}"
         hx-target="#fc-main-panel"
         hx-swap="innerHTML"
         hx-indicator="#fc-main-spin"

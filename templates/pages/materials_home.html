@@ -1,47 +1,80 @@
 {% extends "base.html" %}
-{% block title %}Materials · Axonelix{% endblock %}
+{% load static %}
+{% block title %}Learning · Axonelix{% endblock %}
+
+{% block extra_head %}
+<style>
+  .module-title { margin: 0 0 8px; }
+  .module-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border-radius: 999px;
+    background: var(--gradient-secondary); color: #fff;
+    font-weight: 700; letter-spacing: .2px;
+    box-shadow: 0 8px 20px rgba(15,23,42,.08);
+  }
+  .module-chip::before { content: "📚"; font-size: 1rem; line-height: 1; }
+</style>
+{% endblock %}
 
 {% block content %}
 
-{% if mode == "tree" %}
-  <div class="d-flex align-items-center justify-content-between mb-3">
-    <div class="page-title">Materials</div>
-    <a class="btn btn-outline-primary btn-sm" href="/">Back to Home</a>
-  </div>
+<!-- Page Header -->
+<div class="mb-4">
+  <h1 class="page-title">LEARNING</h1>
+  <p class="page-subtitle">Browse materials, question banks, and flashcards.</p>
+</div>
 
+<!-- Main Navigation Cards -->
+<div class="row g-4 mb-5">
+    <div class="col-md-4">
+        <div class="card card-gradient p-4">
+            <h3 class="fw-bold">Materials</h3>
+            <p>You are here</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <a href="{% url 'web_questions_browse' %}" class="card p-4 text-decoration-none d-block">
+            <h3 class="fw-bold">Question Banks</h3>
+            <p>Test your knowledge.</p>
+        </a>
+    </div>
+    <div class="col-md-4">
+        <a href="{% url 'web_flashcards' %}" class="card p-4 text-decoration-none d-block">
+            <h3 class="fw-bold">Flashcards</h3>
+            <p>Review key concepts.</p>
+        </a>
+    </div>
+</div>
+
+
+{% if mode == "tree" %}
+  <h2 class="page-title">BROWSE BY YEAR</h2>
   {% if semesters %}
     {% for sem in semesters %}
-      <div class="card-soft p-3 mb-3">
-        <div class="fw-bold mb-2">Semester: {{ sem.name }}</div>
-
-        {# Modules for this semester #}
-        {% with sem_id=sem.id %}
-          {% for mod in modules %}
-            {% if mod.semester == sem_id %}
-              <div class="card-soft p-3 mb-2">
-                <div class="small text-muted mb-2">Module</div>
-                <div class="fw-semibold mb-2">{{ mod.name }}</div>
-
-                {# Subjects for this module #}
-                <div class="row g-2">
-                  {% with mod_id=mod.id %}
-                    {% for sub in subjects %}
-                      {% if sub.module == mod_id %}
-                        <div class="col-12 col-md-6 col-lg-4">
-                          <div class="card-soft p-3 d-flex flex-column gap-1 h-100">
-                            <div class="fw-bold">{{ sub.name }}</div>
-                            <div class="small text-muted">Module ID: {{ sub.module }}</div>
-                            <a class="btn btn-primary btn-sm mt-2" href="/materials/?subject={{ sub.id }}">Open</a>
-                          </div>
-                        </div>
-                      {% endif %}
-                    {% endfor %}
-                  {% endwith %}
+      <div class="card mb-4">
+        <div class="card-header bg-transparent border-0 pt-3 px-4">
+            <h3 class="fw-bold">{{ sem.name }}</h3>
+        </div>
+        <div class="card-body p-4">
+          {% with sem_id=sem.id %}
+            {% for mod in modules %}
+              {% if mod.semester == sem_id %}
+                <div class="mb-3">
+                  <h4 class="module-title"><span class="module-chip">{{ mod.name }}</span></h4>
+                  <div class="list-group">
+                    {% with mod_id=mod.id %}
+                      {% for sub in subjects %}
+                        {% if sub.module == mod_id %}
+                          <a href="{% url 'web_materials_home' %}?subject={{ sub.id }}" class="list-group-item list-group-item-action fs-5">{{ sub.name }}</a>
+                        {% endif %}
+                      {% endfor %}
+                    {% endwith %}
+                  </div>
                 </div>
-              </div>
-            {% endif %}
-          {% endfor %}
-        {% endwith %}
+              {% endif %}
+            {% endfor %}
+          {% endwith %}
+        </div>
       </div>
     {% endfor %}
   {% else %}
@@ -49,113 +82,76 @@
   {% endif %}
 
 {% elif mode == "subject_detail" %}
-  <div class="d-flex align-items-center justify-content-between mb-3">
+  <div class="d-flex align-items-center justify-content-between mb-4">
     <div class="d-flex align-items-center gap-2">
-      <a href="/materials/" class="btn btn-outline-secondary btn-sm">← Back</a>
-      <div class="page-title mb-0">{{ subject_name }}</div>
+      <a href="{% url 'web_materials_home' %}" class="btn btn-secondary btn-sm">← Back</a>
+      <h2 class="page-title mb-0">{{ subject_name }}</h2>
     </div>
-    <a class="btn btn-outline-primary btn-sm" href="/">Home</a>
   </div>
 
-  {# Part type filters #}
-  <div class="d-flex flex-wrap gap-2 mb-3">
-    <a class="btn btn-sm {% if not active_part_type %}btn-primary{% else %}btn-outline-primary{% endif %}"
-       href="/materials/?subject={{ subject_id }}{% if active_chapter %}&chapter={{ active_chapter }}{% endif %}">
-      All parts
-    </a>
-    <a class="btn btn-sm {% if active_part_type == 'theoretical' %}btn-primary{% else %}btn-outline-primary{% endif %}"
-       href="/materials/?subject={{ subject_id }}{% if active_chapter %}&chapter={{ active_chapter }}{% endif %}&part_type=theoretical">
-      Theory
-    </a>
-    <a class="btn btn-sm {% if active_part_type == 'practical' %}btn-primary{% else %}btn-outline-primary{% endif %}"
-       href="/materials/?subject={{ subject_id }}{% if active_chapter %}&chapter={{ active_chapter }}{% endif %}&part_type=practical">
-      Practical
-    </a>
+  <!-- Filters -->
+  <div class="d-flex flex-wrap gap-2 mb-4">
+    <a class="btn btn-sm {% if not active_part_type %}btn-primary{% else %}btn-outline-primary{% endif %}" href="{% url 'web_materials_home' %}?subject={{ subject_id }}{% if active_chapter %}&chapter={{ active_chapter }}{% endif %}">All Parts</a>
+    <a class="btn btn-sm {% if active_part_type == 'theoretical' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="{% url 'web_materials_home' %}?subject={{ subject_id }}{% if active_chapter %}&chapter={{ active_chapter }}{% endif %}&part_type=theoretical">Theory</a>
+    <a class="btn btn-sm {% if active_part_type == 'practical' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="{% url 'web_materials_home' %}?subject={{ subject_id }}{% if active_chapter %}&chapter={{ active_chapter }}{% endif %}&part_type=practical">Practical</a>
   </div>
 
-  {# Chapters FIRST #}
-    {% if chapters and chapters|length > 0 %}
-    <div class="d-flex flex-wrap gap-2 mb-3">
-        <a class="btn btn-outline-secondary btn-sm {% if not active_chapter %}active{% endif %}"
-        href="/materials/?subject={{ subject_id }}{% if active_part_type %}&part_type={{ active_part_type }}{% endif %}">
-        All chapters
-        </a>
-        {% for c in chapters %}
-        <a class="btn btn-outline-secondary btn-sm {% if active_chapter == c.id|stringformat:'s' %}active{% endif %}"
-            href="/materials/?subject={{ subject_id }}&chapter={{ c.id }}{% if active_part_type %}&part_type={{ active_part_type }}{% endif %}">
-            {{ c.title }}
-        </a>
-        {% endfor %}
-    </div>
-    {% endif %}
-
-
-  {# Lessons ONLY AFTER a chapter is chosen #}
-  {% if active_chapter %}
-    <div class="d-flex align-items-center justify-content-between mb-2">
-      <div class="h5 mb-0">Lessons</div>
-      <a class="btn btn-outline-secondary btn-sm"
-         href="/materials/?subject={{ subject_id }}{% if active_part_type %}&part_type={{ active_part_type }}{% endif %}">
-        Clear chapter filter
-      </a>
-    </div>
-
-    {% if lessons and lessons|length > 0 %}
-      <div class="row g-3">
-        {% for l in lessons %}
-          <div class="d-flex align-items-center justify-content-between">
-          <div>
-            <div class="fw-bold">{{ l.title }}</div>
-            {% if l.part_type %}
-              <div class="small text-muted">Part: {{ l.part_type|title }}</div>
-            {% endif %}
-          </div>
-
-          <div class="d-flex gap-2 align-items-center">
-            {# ✓ Mark as done / Done badge (HTMX) #}
-            <span id="done-{{ l.id }}">
-              {% if done_ids and l.id in done_ids %}
-                {% include "components/_lesson_done_button.html" with lesson_id=l.id is_done=True %}
-              {% else %}
-                {% include "components/_lesson_done_button.html" with lesson_id=l.id is_done=False %}
-              {% endif %}
-            </span>
-
-            {# ☆ Favorites #}
-            <span id="fav-{{ l.id }}">
-              {% if favorite_ids and l.id in favorite_ids %}
-                {% include "components/_favorite_button.html" with lesson_id=l.id is_fav=True %}
-              {% else %}
-                {% include "components/_favorite_button.html" with lesson_id=l.id is_fav=False %}
-              {% endif %}
-            </span>
-
-            <a class="btn btn-primary btn-sm" href="/materials/lesson/{{ l.id }}/">Open lesson</a>
-          </div>
+  <div class="row g-4">
+    <!-- Chapters -->
+    <div class="col-lg-4">
+        <h4 class="page-title fs-5">CHAPTERS</h4>
+        {% if chapters and chapters|length > 0 %}
+        <div class="list-group">
+            <a class="list-group-item list-group-item-action {% if not active_chapter %}active{% endif %}" href="{% url 'web_materials_home' %}?subject={{ subject_id }}{% if active_part_type %}&part_type={{ active_part_type }}{% endif %}">All Chapters</a>
+            {% for c in chapters %}
+            <a class="list-group-item list-group-item-action {% if active_chapter == c.id|stringformat:'s' %}active{% endif %}" href="{% url 'web_materials_home' %}?subject={{ subject_id }}&chapter={{ c.id }}{% if active_part_type %}&part_type={{ active_part_type }}{% endif %}">{{ c.title }}</a>
+            {% endfor %}
         </div>
+        {% else %}
+        <div class="text-muted">No chapters found.</div>
+        {% endif %}
+    </div>
 
-        {% endfor %}
-
-      </div>
-    {% else %}
-      <div class="alert alert-secondary">No lessons found for this chapter{% if active_part_type %} and part{% endif %}.</div>
-    {% endif %}
-  {% else %}
-    <div class="alert alert-secondary">Select a chapter to view lessons{% if active_part_type %} ({{ active_part_type|title }}){% endif %}.</div>
-  {% endif %}
+    <!-- Lessons -->
+    <div class="col-lg-8">
+        <h4 class="page-title fs-5">LESSONS</h4>
+        {% if active_chapter %}
+            {% if lessons and lessons|length > 0 %}
+            <div class="list-group">
+                {% for l in lessons %}
+                <div class="list-group-item">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="fw-bold">{{ l.title }}</div>
+                        <div class="d-flex gap-2 align-items-center">
+                            <span id="done-{{ l.id }}">
+                                {% if l.id in done_ids %}
+                                    {% include "components/_lesson_done_button.html" with lesson_id=l.id is_done=True %}
+                                {% else %}
+                                    {% include "components/_lesson_done_button.html" with lesson_id=l.id is_done=False %}
+                                {% endif %}
+                            </span>
+                            <span id="fav-{{ l.id }}">
+                                {% if l.id in favorite_ids %}
+                                    {% include "components/_favorite_button.html" with lesson_id=l.id is_fav=True %}
+                                {% else %}
+                                    {% include "components/_favorite_button.html" with lesson_id=l.id is_fav=False %}
+                                {% endif %}
+                            </span>
+                            <a class="btn btn-primary btn-sm" href="{% url 'web_lesson' l.id %}">Open</a>
+                        </div>
+                    </div>
+                    {% if l.part_type %}<div class="small text-muted mt-1">Part: {{ l.part_type|title }}</div>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="card p-4 text-center text-muted">No lessons found for this chapter.</div>
+            {% endif %}
+        {% else %}
+            <div class="card p-4 text-center text-muted">Select a chapter to view lessons.</div>
+        {% endif %}
+    </div>
+  </div>
 {% endif %}
-
-
-{# ضعه مثلاً في آخر الصفحة أو داخل block scripts إن وجد #}
-<script src="https://unpkg.com/htmx.org@1.9.12"></script>
-<script>
-  function getCookie(name) {
-    const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
-    return v ? v.pop() : '';
-  }
-  document.body.addEventListener('htmx:configRequest', (e) => {
-    e.detail.headers['X-CSRFToken'] = getCookie('csrftoken');
-  });
-</script>
 
 {% endblock %}

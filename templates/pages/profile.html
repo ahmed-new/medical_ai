@@ -73,7 +73,7 @@
 
     {# زرار upgrade يظهر بس لو الخطة مش advanced #}
     {% if me.plan|lower != "advanced" %}
-      <button class="btn btn-outline-danger btn-sm" type="button">Upgrade</button>
+      <a href="{% url 'web_plans' %}" class="btn btn-primary btn-sm">Upgrade Plan</a>
     {% endif %}
 
   </div>

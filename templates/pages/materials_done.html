@@ -1,43 +1,187 @@
 {% extends "base.html" %}
-{% block title %}Completed lessons · Axonelix{% endblock %}
+{% load static %}
+{% block title %}Completed · Axonelix{% endblock %}
+
+{% block extra_head %}
+<style>
+  .done-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 12px;
+  }
+  .done-toolbar {
+    display: grid; grid-template-columns: 1fr 220px 180px auto; gap: 10px;
+    margin-bottom: 16px;
+  }
+  @media (max-width: 768px) {
+    .done-toolbar { grid-template-columns: 1fr 1fr; }
+  }
+  .done-input, .done-select, .done-btn {
+    height: 38px; border-radius: 10px; border: 1px solid var(--border-color);
+    background: var(--bg-white); padding: 8px 12px;
+  }
+  .done-btn {
+    display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
+    color: var(--brand-primary); border: 1px solid var(--border-color); background: var(--bg-white);
+  }
+  .done-btn.active { border-color: var(--brand-primary); box-shadow: 0 6px 16px rgba(0,0,0,.06); }
+  .badge-subject {
+    display: inline-block; border-radius: 999px; padding: 4px 10px;
+    background: rgba(34,197,94,.12); color: #16a34a; font-weight: 600; font-size: .85rem;
+  }
+  .done-card {
+    border-radius: 16px; padding: 14px; background: var(--bg-white);
+    box-shadow: 0 12px 28px rgba(15,23,42,.07); transition: transform .12s ease, box-shadow .12s ease;
+    height: 100%;
+  }
+  .done-card:hover { transform: translateY(-1px); box-shadow: 0 14px 36px rgba(15,23,42,.10); }
+  .done-card .title { font-weight: 700; font-size: 1rem; margin: 6px 0 8px; color: var(--brand-primary); }
+  .done-card .actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .done-open {
+    border: 1px solid var(--border-color); padding: 6px 10px; border-radius: 10px;
+    text-decoration: none; color: var(--brand-primary); background: var(--bg-white);
+  }
+  .done-open:hover { border-color: var(--brand-primary); }
+  .done-empty { border-radius: 16px; padding: 24px; text-align: center; color: var(--muted); background: var(--bg-white); }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container py-3" style="max-width: 900px;">
-  <div class="d-flex justify-content-between align-items-center mb-3">
+<div class="container py-3" style="max-width: 1000px;">
+
+  <div class="done-header">
     <div>
       <h3 class="mb-0">Completed lessons</h3>
       <small class="text-muted">Lessons you have marked as done.</small>
     </div>
-    <a href="/" class="btn btn-link btn-sm">← Back to home</a>
+    <a href="{% url 'web_home' %}" class="btn btn-link btn-sm">← Back to home</a>
   </div>
 
   {% if total == 0 %}
-    <div class="card-soft p-4 text-center text-muted">
+    <div class="done-empty">
       You haven't completed any lessons yet.
     </div>
   {% else %}
-    <div class="row g-3">
+
+    <!-- Toolbar -->
+    <div class="done-toolbar">
+      <input id="done-search" class="done-input" type="search" placeholder="Search by title…">
+      <input id="done-subject" class="done-input" list="done-subjects" placeholder="Filter by subject…">
+      <datalist id="done-subjects">
+        {% for l in lessons %}
+          {% with subj="" %}
+            {% if l.subject and l.subject.name %}
+              {% with subj=l.subject.name %}{% endwith %}
+            {% endif %}
+            {% if subj %}<option value="{{ subj }}">{% endif %}
+          {% endwith %}
+        {% endfor %}
+      </datalist>
+      <select id="done-sort" class="done-select">
+        <option value="title-asc">Sort: Title (A→Z)</option>
+        <option value="title-desc">Sort: Title (Z→A)</option>
+      </select>
+      <div class="d-flex gap-2">
+        <button id="view-grid" class="done-btn active" type="button">🔳 Grid</button>
+        <button id="view-list" class="done-btn" type="button">📋 List</button>
+      </div>
+    </div>
+
+    <!-- Items -->
+    <div id="done-list" class="row g-3">
       {% for l in lessons %}
-        <div class="col-12 col-md-6">
-          <a href="/materials/lesson/{{ l.id }}/"
-             class="card-soft p-3 d-block text-decoration-none h-100">
-            <div class="small text-muted mb-1">
-              {% if l.subject and l.subject.name %}
-                {{ l.subject.name }}
-              {% else %}
-                Lesson
-              {% endif %}
+        {% with subj="" %}
+          {% if l.subject and l.subject.name %}
+            {% with subj=l.subject.name %}{% endwith %}
+          {% endif %}
+          <div class="col-12 col-md-6 col-lg-4 done-item"
+               data-title="{{ l.title|lower }}"
+               data-subject="{{ subj|lower }}">
+            <div class="done-card d-flex flex-column">
+              <div class="d-flex justify-content-between align-items-start">
+                <span class="badge-subject">
+                  {% if subj %}{{ subj }}{% else %}Lesson{% endif %}
+                </span>
+                <span class="text-success small fw-semibold d-inline-flex align-items-center gap-1">
+                  ✅ Completed
+                </span>
+              </div>
+              <div class="title">{{ l.title }}</div>
+              <div class="text-muted small mb-2">Open this lesson again, or quickly review its content.</div>
+              <div class="actions mt-auto">
+                <a href="{% url 'web_lesson' l.id %}" class="done-open">Open</a>
+              </div>
             </div>
-            <div class="fw-semibold mb-1">
-              {{ l.title }}
-            </div>
-            <div class="small text-muted">
-              Open this lesson again, or quickly review its content.
-            </div>
-          </a>
-        </div>
+          </div>
+        {% endwith %}
       {% endfor %}
     </div>
+
+    <!-- Empty after client-side filters -->
+    <div id="done-empty-filter" class="done-empty d-none">
+      No completed lessons match your filters.
+    </div>
+
   {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function() {
+    const search = document.getElementById('done-search');
+    const subject = document.getElementById('done-subject');
+    const sortSel = document.getElementById('done-sort');
+    const viewGrid = document.getElementById('view-grid');
+    const viewList = document.getElementById('view-list');
+    const list = document.getElementById('done-list');
+    const items = Array.from(document.querySelectorAll('.done-item'));
+    const emptyFilter = document.getElementById('done-empty-filter');
+
+    function applyFilters() {
+      const q = (search.value || '').trim().toLowerCase();
+      const subj = (subject.value || '').trim().toLowerCase();
+      let visibleCount = 0;
+      items.forEach(it => {
+        const matchesTitle = !q || it.dataset.title.includes(q);
+        const matchesSubj = !subj || it.dataset.subject === subj || it.dataset.subject.includes(subj);
+        const show = matchesTitle && matchesSubj;
+        it.classList.toggle('d-none', !show);
+        if (show) visibleCount++;
+      });
+      emptyFilter.classList.toggle('d-none', visibleCount !== 0);
+    }
+
+    function applySort() {
+      const v = sortSel.value;
+      const dir = v.endsWith('desc') ? -1 : 1;
+      const sorted = items.slice().sort((a,b) => {
+        const ta = a.dataset.title, tb = b.dataset.title;
+        return ta.localeCompare(tb) * dir;
+      });
+      sorted.forEach(el => list.appendChild(el));
+    }
+
+    function applyView(isList) {
+      viewGrid.classList.toggle('active', !isList);
+      viewList.classList.toggle('active', isList);
+      items.forEach(el => {
+        el.classList.toggle('col-lg-4', !isList);
+        el.classList.toggle('col-md-6', !isList);
+        el.classList.toggle('col-12', true);
+        el.classList.toggle('col-lg-12', isList);
+        el.classList.toggle('col-md-12', isList);
+      });
+    }
+
+    search && search.addEventListener('input', applyFilters);
+    subject && subject.addEventListener('input', applyFilters);
+    sortSel && sortSel.addEventListener('change', applySort);
+    viewGrid && viewGrid.addEventListener('click', () => applyView(false));
+    viewList && viewList.addEventListener('click', () => applyView(true));
+
+    // initial
+    applySort();
+    applyFilters();
+  })();
+</script>
 {% endblock %}

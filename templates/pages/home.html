@@ -1,86 +1,189 @@
 {% extends "base.html" %}
-{% block title %}Home · Axonelix{% endblock %}
+{% load static %}
+{% block title %}Dashboard · Axonelix{% endblock %}
+
+{% block extra_head %}
+<style>
+  .quick-pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 14px; border-radius: 999px;
+    text-decoration: none; font-weight: 600;
+    box-shadow: 0 8px 20px rgba(0,0,0,.08);
+    background: var(--bg-white); border: 1px solid var(--border-color);
+    color: var(--brand-primary);
+  }
+  .quick-pill:hover { border-color: var(--brand-primary); color: var(--brand-primary); }
+  .quick-pill .emoji { font-size: 1.1rem; line-height: 1; }
+  @media (max-width: 768px) {
+    .quick-pill { padding: 6px 12px; font-weight: 500; }
+  }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="d-flex align-items-center justify-content-between mb-3">
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
   <div>
-    <div class="page-title mb-1">Welcome, {{ me.username|default:"Student" }} 👋</div>
-    <div class="small text-muted">Study overview</div>
+    <h1 class="page-title mb-0">DASHBOARD</h1>
+    <p class="page-subtitle">Welcome back, {{ me.username|default:"Student" }}! 👋</p>
   </div>
-  <div><span class="badge bg-primary text-uppercase">{{ me.plan|default:"none" }}</span></div>
-</div>
-
-<div class="row g-3">
-
-  <!-- Streak -->
-  <div class="col-12 col-md-6 col-lg-3">
-    <div class="card-soft p-3">
-      <div class="text-muted small">Streak</div>
-      <div class="fw-bold fs-5">{{ streak.current_streak|default:0 }}</div>
-      <div class="small text-muted">{{ streak.message|default:"—" }}</div>
-    </div>
-  </div>
-
-  <!-- Solved Qs -->
-  <div class="col-12 col-md-6 col-lg-3">
-    <div class="card-soft p-3">
-      <div class="text-muted small">Solved questions</div>
-      <div class="fw-bold fs-5">{{ solved_qs|default:0 }}</div>
-      <div class="small text-muted">Accuracy: {{ accuracy|default:0 }}%</div>
-    </div>
-  </div>
-
-  <!-- Study time -->
-  <div class="col-12 col-md-6 col-lg-3">
-    <div class="card-soft p-3">
-      <div class="text-muted small">Study time</div>
-      <div class="fw-bold fs-5">{{ study_today_min|default:0 }} min <span class="text-muted small">today</span></div>
-      <div class="small text-muted">{{ study_month_min|default:0 }} min this month</div>
-    </div>
-  </div>
-
-  <!-- Favorites clickable -->
-  <div class="col-12 col-md-6 col-lg-3">
-    <a href="/materials/favorites/" class="card-soft p-3 text-decoration-none d-block text-dark hover-card">
-      <div class="text-muted small">Favorites</div>
-      <div class="fw-bold fs-5">{{ fav_lessons_total|default:0 }}</div>
-      <div class="small text-muted">View favorite lessons →</div>
+  <div class="d-flex align-items-center gap-2 flex-wrap">
+    <span class="badge fs-6 rounded-pill" style="background: var(--gradient-secondary); padding: 8px 16px;">
+      {{ me.plan|default:"None" }} Plan
+    </span>
+    <a href="{% url 'web_favorite_lessons' %}" class="quick-pill">
+      <span class="emoji">💙</span> <span>Favorites</span>
+    </a>
+    <a href="{% url 'web_done_lessons' %}" class="quick-pill">
+      <span class="emoji">✅</span> <span>Completed</span>
     </a>
   </div>
 </div>
 
-<!-- Last Lesson -->
-{% if last_lesson %}
-<div class="card-soft p-3 my-3 d-flex align-items-center justify-content-between">
-  <div>
-    <div class="fw-bold">Last Lesson Completed</div>
-    <div class="text-muted small">{{ last_lesson.title }}</div>
-  </div>
-  <a class="btn btn-outline-primary btn-sm" href="/materials/lesson/{{ last_lesson.id }}/">Open</a>
-</div>
-{% endif %}
 
-<!-- History -->
-<div class="card-soft p-3 my-3 d-flex align-items-center justify-content-between">
-  <div class="d-flex align-items-center gap-2">
-    <i class="bi bi-clock-history text-muted fs-5"></i>
-    <div>
-      <div class="fw-bold">History</div>
-      <div class="text-muted small">View completed lessons</div>
+
+<!-- تم حذف صف البطاقات القديمة (Quick Actions) هنا -->
+<!-- Main Stats Row -->
+<div class="row g-4 mb-4">
+  <!-- Streak Card -->
+  <div class="col-md-4">
+    <div class="card p-3 h-100">
+      <div class="d-flex align-items-center">
+        <div class="fs-1 me-3" style="color: var(--warning);">🔥</div>
+        <div>
+          <div class="small text-muted">Study Streak</div>
+          <div class="fs-4 fw-bold">{{ streak.current_streak|default:0 }} Days</div>
+        </div>
+      </div>
     </div>
   </div>
-  <a class="btn btn-outline-secondary btn-sm" href="/materials/done/">View</a>
-</div>
-
-<!-- Trees / Planner -->
-<div class="card-soft p-3 my-3 d-flex align-items-center justify-content-between">
-  <div class="d-flex align-items-center gap-3">
-    <div class="display-6 fw-bold">{{ trees_today|default:0 }}</div>
-    <div>
-      <div class="fw-bold">Trees</div>
-      <div class="text-muted small">25 min = 1 tree</div>
+  <!-- Solved Questions Card -->
+  <div class="col-md-4">
+    <div class="card p-3 h-100">
+      <div class="small text-muted">Solved Questions</div>
+      <div class="fs-4 fw-bold">{{ solved_qs|default:0 }}</div>
+      <div class="small text-muted">Accuracy: {{ accuracy|default:0 }}%</div>
     </div>
   </div>
-  <a class="btn btn-primary" href="/planner/">Start now</a>
+  <!-- Study Time Today Card -->
+  <div class="col-md-4">
+    <div class="card p-3 h-100">
+      <div class="small text-muted">Study Time Today</div>
+      <div class="fs-4 fw-bold">{{ study_today_min|default:0 }} min</div>
+      <div class="small text-muted">{{ study_this_month_min|default:0 }} min this month</div>
+    </div>
+  </div>
 </div>
+
+<!-- Trees & Last Lesson Row -->
+<div class="row g-4 mb-4">
+  <!-- Trees Card -->
+  <div class="col-lg-7">
+    <div class="card card-gradient p-4 h-100 d-flex flex-column justify-content-between">
+      <div class="d-flex align-items-center">
+        <img src="{% static 'logos/tree.png' %}" alt="Study Tree" style="height: 50px; margin-right: 16px;">
+        <div>
+          <h3 class="fw-bold mb-0">Study Trees</h3>
+          <p class="mb-0">Each 25-minute focus session grows a tree.</p>
+        </div>
+      </div>
+      <div class="d-flex align-items-center justify-content-between mt-4">
+        <div class="text-center">
+          <div class="display-4 fw-bold" id="trees-today">{{ trees_today|default:0 }}</div>
+          <div class="small">Trees Today</div>
+        </div>
+        {% if request.session.access %}
+          <button id="studyTreesStart"
+                  class="btn btn-light"
+                  data-bs-toggle="modal"
+                  data-bs-target="#pomodoroModal"
+                  data-min="25">
+            Start Now
+          </button>
+        {% else %}
+          <a href="{% url 'web_login' %}" class="btn btn-light">Sign in to focus</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <!-- Last Lesson Card -->
+  <div class="col-lg-5">
+    {% if last_lesson %}
+    <div class="card p-4 h-100">
+      <h4 class="fw-bold">Continue Where You Left Off</h4>
+      <p class="text-muted">{{ last_lesson.title }}</p>
+      <a href="{% url 'web_lesson' last_lesson.id %}" class="btn btn-secondary mt-auto">Open Lesson</a>
+    </div>
+    {% else %}
+    <div class="card p-4 h-100">
+        <h4 class="fw-bold">Start Learning</h4>
+        <p class="text-muted">Dive into your medical materials and start your journey.</p>
+        <a href="{% url 'materials_home' %}" class="btn btn-primary mt-auto">Browse Materials</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+
+<!-- Main Navigation Grid -->
+<div class="py-4">
+    <h2 class="page-title">EXPLORE</h2>
+    <p class="page-subtitle mb-4">Choose what you want to do today.</p>
+    <div class="row g-4">
+        <div class="col-md-6 col-lg-4">
+            <a href="{% url 'web_materials_home' %}" class="card card-gradient p-4 text-decoration-none h-100 d-block">
+                <h3 class="fw-bold">Materials</h3>
+                <p>Browse all lessons and subjects.</p>
+            </a>
+        </div>
+        <div class="col-md-6 col-lg-4">
+            <a href="{% url 'web_questions_browse' %}" class="card card-gradient p-4 text-decoration-none h-100 d-block">
+                <h3 class="fw-bold">Question Banks</h3>
+                <p>Practice with thousands of questions.</p>
+            </a>
+        </div>
+        <div class="col-md-6 col-lg-4">
+            <a href="{% url 'web_flashcards' %}" class="card card-gradient p-4 text-decoration-none h-100 d-block">
+                <h3 class="fw-bold">Flashcards</h3>
+                <p>Review and create study cards.</p>
+            </a>
+        </div>
+        <div class="col-md-6 col-lg-4">
+            <a href="{% url 'web_planner' %}" class="card p-4 text-decoration-none h-100 d-block">
+                <h3 class="fw-bold">Planner</h3>
+                <p>Organize your study schedule.</p>
+            </a>
+        </div>
+        <div class="col-md-6 col-lg-4">
+            <a href="{% url 'web_favorite_lessons' %}" class="card p-4 text-decoration-none h-100 d-block">
+                <h3 class="fw-bold">Favorites</h3>
+                <p>Access your saved lessons.</p>
+            </a>
+        </div>
+        <div class="col-md-6 col-lg-4">
+            <a href="{% url 'web_profile' %}" class="card p-4 text-decoration-none h-100 d-block">
+                <h3 class="fw-bold">Profile</h3>
+                <p>View your account and progress.</p>
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var btn = document.getElementById('studyTreesStart');
+    if (btn) {
+      btn.addEventListener('click', function () {
+        try {
+          var sel = document.getElementById('pomodoro-duration');
+          if (sel) {
+            sel.value = btn.dataset.min || '25';
+            sel.dispatchEvent(new Event('change'));
+          }
+        } catch (e) {}
+      });
+    }
+  });
+</script>
 {% endblock %}

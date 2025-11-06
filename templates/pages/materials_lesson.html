@@ -1,17 +1,55 @@
 {% extends "base.html" %}
 {% block title %}Lesson · Axonelix{% endblock %}
 
+{% block extra_head %}
+<style>
+  .lesson-header { border-radius: 16px; box-shadow: 0 12px 28px rgba(15,23,42,.07); }
+  .lesson-title { font-weight: 800; font-size: 1.25rem; color: var(--brand-primary); }
+  .meta { display:flex; flex-wrap:wrap; gap:8px; }
+  .meta-chip { display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px; font-weight:600; border:1px solid var(--border-color); background: var(--bg-white); color: var(--muted); }
+  .meta-chip.primary { color: var(--brand-primary); border-color: var(--brand-primary); }
+  .lesson-actions .btn, .lesson-actions span { display:inline-flex; align-items:center; }
+  .reading-progress { position: sticky; top: 0; height: 3px; background: rgba(0,0,0,.06); border-radius: 999px; overflow: hidden; }
+  .reading-progress .bar { height: 100%; width: 0%; background: var(--brand-primary); transition: width .12s ease; }
+  .nav-tabs .nav-link { font-weight: 600; }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="d-flex align-items-center justify-content-between mb-3">
-  <div class="d-flex align-items-center gap-2">
-    {% if subject_id %}
-      <a href="/materials/?subject={{ subject_id }}" class="btn btn-outline-secondary btn-sm">← Back</a>
-    {% else %}
-      <a href="/materials/" class="btn btn-outline-secondary btn-sm">← Back</a>
-    {% endif %}
-    <div class="page-title mb-0">{{ lesson.title|default:"Lesson" }}</div>
+<div class="lesson-header card-soft p-3 mb-3">
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+    <div class="d-flex align-items-center gap-2">
+      {% if subject_id %}
+        <a href="{% url 'web_materials_home' %}?subject={{ subject_id }}" class="btn btn-outline-secondary btn-sm">← Back</a>
+      {% else %}
+        <a href="{% url 'web_materials_home' %}" class="btn btn-outline-secondary btn-sm">← Back</a>
+      {% endif %}
+      <div class="lesson-title">{{ lesson.title|default:"Lesson" }}</div>
+    </div>
+    <div class="d-flex align-items-center gap-2 lesson-actions">
+      <span id="done-{{ lesson_id }}">
+        {% include "components/_lesson_done_button.html" with lesson_id=lesson_id is_done=is_done %}
+      </span>
+      <span id="fav-{{ lesson_id }}">
+        {% include "components/_favorite_button.html" with lesson_id=lesson_id is_fav=is_fav %}
+      </span>
+      <a class="btn btn-outline-primary btn-sm" href="{% url 'web_home' %}">Home</a>
+    </div>
   </div>
-  <a class="btn btn-outline-primary btn-sm" href="/">Home</a>
+  <div class="d-flex align-items-center justify-content-between mt-2">
+    <div class="meta">
+      {% if lesson.part_type %}
+        <span class="meta-chip primary">Part: {{ lesson.part_type|title }}</span>
+      {% endif %}
+      {% if chapter_title %}
+        <span class="meta-chip">Chapter: {{ chapter_title }}</span>
+      {% endif %}
+    </div>
+    {% if not limited and lesson.pdf %}
+      <a class="btn btn-outline-primary btn-sm" href="{{ lesson.pdf }}" target="_blank" rel="noopener">📄 Open PDF</a>
+    {% endif %}
+  </div>
+  <div class="reading-progress mt-2"><div id="reading-bar" class="bar"></div></div>
 </div>
 
 <div class="row g-3">
@@ -37,9 +75,8 @@
     {# ---------- Tabs ---------- #}
     <ul class="nav nav-tabs mb-3">
       <li class="nav-item">
-        <a class="nav-link active" data-bs-toggle="tab" href="#tab-content">Content</a>
+        <a class="nav-link active" data-bs-toggle="tab" href="#tab-content">📘 Content</a>
       </li>
-
       <li class="nav-item">
         <a class="nav-link"
            data-bs-toggle="tab"
@@ -49,10 +86,9 @@
            hx-target="#tab-questions"
            hx-swap="innerHTML"
            hx-indicator="#qs-loading">
-          Questions
+          ❓ Questions
         </a>
       </li>
-
       <li class="nav-item">
         <a class="nav-link"
            data-bs-toggle="tab"
@@ -62,13 +98,12 @@
            hx-target="#tab-flashcards"
            hx-swap="innerHTML"
            hx-indicator="#fc-loading">
-          Flashcards
+          🧠 Flashcards
         </a>
       </li>
     </ul>
 
     <div class="tab-content">
-      {# Content pane #}
       <div id="tab-content" class="tab-pane fade show active">
         {% if limited %}
           <div class="alert alert-warning mb-3">
@@ -77,7 +112,7 @@
         {% else %}
           {% if lesson.content %}
             <div class="card-soft p-3">
-              <div class="lesson-content">{{ lesson.content|safe }}</div>
+              <div id="lesson-content" class="lesson-content">{{ lesson.content|safe }}</div>
             </div>
           {% else %}
             <div class="alert alert-secondary">No content available for this lesson.</div>
@@ -115,9 +150,27 @@
       {% endif %}
 
       {% if subject_id %}
-        <a class="btn btn-outline-secondary w-100 mt-2" href="/materials/?subject={{ subject_id }}">← Back to subject</a>
+        <a class="btn btn-outline-secondary w-100 mt-2" href="{% url 'web_materials_home' %}?subject={{ subject_id }}">← Back to subject</a>
       {% endif %}
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Reading progress (page scroll)
+  (function() {
+    var bar = document.getElementById('reading-bar');
+    function onScroll() {
+      var doc = document.documentElement;
+      var scrollTop = doc.scrollTop || document.body.scrollTop;
+      var scrollHeight = doc.scrollHeight - doc.clientHeight;
+      var pct = scrollHeight > 0 ? Math.min(100, Math.max(0, (scrollTop / scrollHeight) * 100)) : 0;
+      if (bar) bar.style.width = pct + '%';
+    }
+    document.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  })();
+</script>
 {% endblock %}
