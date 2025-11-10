@@ -231,9 +231,12 @@ class StudentQuestions(APIView):
         flipped_param = request.query_params.get("flipped")
         exam_kind     = request.query_params.get("exam_kind")   # e.g. final | midterm | ...
         exam_year     = request.query_params.get("exam_year")   # e.g. 2024
+        # NEW: incorrect-only mode
+        incorrect_only_param = request.query_params.get("incorrect_only")
 
         tbl_val       = _to_bool_param(tbl_param)
         flipped_val   = _to_bool_param(flipped_param)
+        incorrect_only_val = _to_bool_param(incorrect_only_param)
 
         qs = Question.objects.all()
 
@@ -298,6 +301,10 @@ class StudentQuestions(APIView):
         if exam_year and exam_year.isdigit():
             qs = qs.filter(exam_year=int(exam_year))
 
+        # NEW: only questions the user answered incorrectly
+        if incorrect_only_val:
+            qs = qs.filter(attempts__user=request.user, attempts__is_correct=False).distinct()
+
         qs = qs.order_by("id")
 
         # Pagination
@@ -318,10 +325,16 @@ class StudentQuestions(APIView):
         else:
             data = QuestionLiteSerializer(items, many=True).data
 
+        # Add robust pagination fields
+        next_offset = offset + len(items)
+        has_more = next_offset < total
+
         resp = {
             "total":  total,
             "limit":  limit,
             "offset": offset,
+            "next_offset": next_offset,
+            "has_more": has_more,
             "items":  data,
         }
 
@@ -399,6 +412,76 @@ class StudentQuestionDetail(APIView):
 
         return Response(QuestionDetailSerializer(obj).data, status=200)
     
+
+
+
+class ExamYearsView(APIView):
+    permission_classes = [IsAuthenticated, SingleDeviceOnly]
+
+    def get(self, request):
+        # نفس منطق صلاحية الأسئلة
+        if not can_view_questions(request.user):
+            return Response(
+                {"detail": "Questions are not available for your current plan/subscription."},
+                status=403,
+            )
+
+        year = _get_user_year(request)
+        if not year:
+            return Response({"detail": "No study year set for user."}, status=400)
+
+        module_id = request.query_params.get("module_id")
+        source    = request.query_params.get("source")      # "old" | "exam_review" (اختيارى)
+        exam_kind = request.query_params.get("exam_kind")   # final | midterm | tpl | flipped (اختيارى)
+
+        if not module_id:
+            return Response({"detail": "module_id is required"}, status=400)
+
+        qs = Question.objects.all()
+
+        # قصر حسب سنة المستخدم (نفس منطق StudentQuestions)
+        q_filters = Q()
+        q_filters |= Q(lesson__subject__module__semester__year=year)
+        q_filters |= Q(subject__module__semester__year=year)
+        q_filters |= Q(module__semester__year=year)
+        q_filters |= Q(year__code=year.code)
+        qs = qs.filter(q_filters)
+
+        # الموديول لازم يكون جاهز
+        qs = qs.filter(
+            Q(lesson__subject__module__is_ready=True) |
+            Q(subject__module__is_ready=True) |
+            Q(module__is_ready=True)
+        )
+
+        # فلتر بالموديول المطلوب
+        qs = qs.filter(module_id=module_id)
+
+        # المصادر المسموحة حسب الباقة
+        allowed_sources = list(sources_allowed(request.user))
+        qs = qs.filter(source_type__in=allowed_sources)
+
+        # لو عايز تفرّق بين old / exam_review عدّل هنا حسب قيم source_type عندك فى الـ DB
+        if source:
+            # TODO: لو القيم فى DB مختلفة عدّل الماب ده
+            qs = qs.filter(source_type=source)
+
+        if exam_kind:
+            qs = qs.filter(exam_kind=exam_kind)
+
+        # استخرج السنوات المميّزة بس، ترتيب تنازلى
+        years = (
+            qs.exclude(exam_year__isnull=True)
+              .values_list("exam_year", flat=True)
+              .distinct()
+              .order_by("-exam_year")
+        )
+
+        return Response(list(years), status=200)
+
+
+
+
 
 
 

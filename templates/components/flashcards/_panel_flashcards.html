@@ -1,4 +1,4 @@
-{# expects: lesson_id, lesson_name, admin_cards, my_cards, subject_id (optional) #}
+{# expects: lesson_id, lesson_name, admin_cards, my_cards, subject_id (optional), can_create_flashcards #}
 
 <div id="fc-panel">
 
@@ -9,20 +9,18 @@
         Lesson: {{ lesson_name }}
       </small>
     </div>
-    <div class="d-flex align-items-center gap-2">
-      {% if subject_id %}
-        <button class="btn btn-link btn-sm"
-                hx-get="{% url 'fc_panel_lessons' %}?subject_id={{ subject_id }}"
-                hx-target="#fc-main-panel"
-                hx-swap="innerHTML">
-          ← Back to lessons
-        </button>
-      {% endif %}
-    </div>
+    {% if subject_id %}
+      <button class="btn btn-link btn-sm"
+              hx-get="{% url 'fc_panel_lessons' %}?subject_id={{ subject_id }}"
+              hx-target="#fc-main-panel"
+              hx-swap="innerHTML">
+        ← Back to lessons
+      </button>
+    {% endif %}
   </div>
 
   {# -------- Tabs: Admin / My flashcards -------- #}
-  <ul class="nav nav-pills mb-3 small" id="fc-tabs">
+  <ul class="nav nav-pills fc-tabs mb-3 small" id="fc-tabs">
     <li class="nav-item">
       <button class="nav-link active" type="button" data-target="#fc-admin">
         Admin deck
@@ -37,163 +35,190 @@
 
   <div class="tab-content">
 
-    {# -------- Admin deck -------- #}
+    {# ================= Admin deck ================= #}
     <div id="fc-admin" class="fc-section tab-pane active show">
       {% if admin_cards %}
-        <div class="fc-grid">
-          {% for fc in admin_cards %}
-            <div class="fc-flip" id="fc-admin-{{ fc.id }}">
-              <div class="fc-inner" data-flip>
-                <div class="fc-front">
-                  <div class="fc-title small text-muted mb-1">Front</div>
-                  <div class="fc-text">
-                    {{ fc.question|safe }}
+        <div class="fc-slider" id="fc-admin-slider">
+          <button type="button" class="fc-arrow fc-prev" aria-label="Previous">‹</button>
+          <div class="fc-viewport">
+            <div class="fc-track" id="fc-admin-track">
+              {% for fc in admin_cards %}
+                <div class="fc-slide">
+                  <div class="fc-flip" id="fc-admin-{{ fc.id }}">
+                    <div class="fc-inner" data-flip>
+                      <div class="fc-front">
+                        <div class="fc-title small text-muted mb-1">Front</div>
+                        <div class="fc-text">
+                          {{ fc.question|safe }}
+                        </div>
+                      </div>
+                      <div class="fc-back">
+                        <div class="fc-view">
+                          <div class="fc-title small text-muted mb-1">Back</div>
+                          <div class="fc-text mb-2">
+                            {% if fc.answer %}
+                              {{ fc.answer|safe }}
+                            {% else %}
+                              <span class="text-muted">— No answer —</span>
+                            {% endif %}
+                          </div>
+                          <div class="d-flex justify-content-end mt-2 w-100">
+                            <span class="badge text-bg-light">Admin</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <div class="fc-back">
-                  <div class="fc-title small text-muted mb-1">Back</div>
-                  <div class="fc-text mb-2">
-                    {% if fc.answer %}
-                      {{ fc.answer|safe }}
-                    {% else %}
-                      <span class="text-muted">— No answer —</span>
-                    {% endif %}
-                  </div>
-                  <div class="d-flex justify-content-end mt-3 w-100">
-                    <span class="badge bg-light text-dark">Admin</span>
-                  </div>
-                </div>
-              </div>
+              {% endfor %}
             </div>
-          {% endfor %}
+          </div>
+          <button type="button" class="fc-arrow fc-next" aria-label="Next">›</button>
         </div>
       {% else %}
-        <div class="alert alert-secondary mb-0 small">No admin flashcards for this lesson.</div>
+        <div class="alert alert-secondary mb-0 small">
+          No admin flashcards for this lesson.
+        </div>
       {% endif %}
     </div>
 
-    {# -------- Create form (My flashcards only) -------- #}
-    <form
-      class="row g-3 align-items-start mb-3"
-      hx-post="{% url 'web_flashcards_create_browse' lesson_id=lesson_id %}"
-      hx-target="#fc-mine-list"
-      hx-swap="afterbegin"
-      hx-indicator="#fc-add-spin"
-      hx-disabled-elt="button"
-      hx-on="htmx:afterSwap: this.reset()"
-    >
-      {% csrf_token %}
-      <div class="col-12 col-lg-5">
-        <label class="form-label fw-semibold">Question</label>
-        <textarea name="question" rows="3" class="form-control" required
-                  placeholder="Front / question..."></textarea>
-      </div>
-
-      <div class="col-12 col-lg-5">
-        <label class="form-label fw-semibold">Answer</label>
-        <textarea name="answer" rows="3" class="form-control"
-                  placeholder="Back / answer..."></textarea>
-      </div>
-
-      <div class="col-6 col-lg-1">
-        <label class="form-label">Order</label>
-        <input type="number" name="order" class="form-control" value="1" min="1">
-      </div>
-
-      <div class="col-6 col-lg-1 d-flex align-items-end">
-        <button class="btn btn-primary w-100">
-          <span id="fc-add-spin"
-                class="spinner-border spinner-border-sm me-1 htmx-indicator"
-                role="status"></span>
-          Add
-        </button>
-      </div>
-    </form>
-
-    {# -------- My flashcards -------- #}
+    {# ================= My flashcards ================= #}
     <div id="fc-mine" class="fc-section tab-pane">
-      <div id="fc-mine-list" class="fc-grid">
-        {% if my_cards %}
-          {% for fc in my_cards %}
-            {% include "components/flashcards/_my_flashcard_item.html" with fc=fc %}
-          {% endfor %}
-        {% else %}
-          <div class="text-muted small mb-0">
-            You don't have any personal flashcards for this lesson yet.
+
+      {# ---- Create form (محكوم بالـ policy) ---- #}
+      {% if can_create_flashcards %}
+        <form
+          class="row g-3 align-items-start mb-3"
+          hx-post="{% url 'web_flashcards_create_browse' lesson_id=lesson_id %}"
+          hx-target="#fc-mine-track"
+          hx-swap="afterbegin"
+          hx-indicator="#fc-add-spin"
+          hx-disabled-elt="button"
+          hx-on="htmx:afterSwap: this.reset()"
+        >
+          {% csrf_token %}
+          <div class="col-12 col-lg-5">
+            <label class="form-label fw-semibold">Question</label>
+            <textarea name="question" rows="3" class="form-control" required
+                      placeholder="Front / question..."></textarea>
           </div>
-        {% endif %}
+
+          <div class="col-12 col-lg-5">
+            <label class="form-label fw-semibold">Answer</label>
+            <textarea name="answer" rows="3" class="form-control"
+                      placeholder="Back / answer..."></textarea>
+          </div>
+
+          <div class="col-6 col-lg-1">
+            <label class="form-label">Order</label>
+            <input type="number" name="order" class="form-control" value="1" min="1">
+          </div>
+
+          <div class="col-6 col-lg-1 d-flex align-items-end">
+            <button class="btn btn-primary w-100 fc-add-btn">
+              <span id="fc-add-spin"
+                    class="spinner-border spinner-border-sm htmx-indicator"
+                    role="status"></span>
+              Add
+            </button>
+          </div>
+        </form>
+      {% else %}
+        <div class="alert alert-info small mb-3">
+          Flashcard creation is available for Premium plans.  
+          You can still review your existing flashcards for this lesson.
+        </div>
+      {% endif %}
+
+      {# ---- My cards slider ---- #}
+      <div id="fc-mine-slider" class="fc-slider">
+        <button type="button" class="fc-arrow fc-prev" aria-label="Previous">‹</button>
+        <div class="fc-viewport">
+          <div class="fc-track" id="fc-mine-track">
+            {% if my_cards %}
+              {% for fc in my_cards %}
+                {% include "components/flashcards/_my_flashcard_item.html" with fc=fc owner_type="user" %}
+              {% endfor %}
+            {% else %}
+              <div class="alert alert-secondary small mb-0">
+                You don't have any personal flashcards for this lesson yet.
+              </div>
+            {% endif %}
+          </div>
+        </div>
+        <button type="button" class="fc-arrow fc-next" aria-label="Next">›</button>
       </div>
-    </div>
 
-  </div>
-</div>
+    </div> {# /fc-mine #}
 
-{# ------------ Styles (flip card + grid) ------------ #}
+  </div> {# /tab-content #}
+</div> {# /fc-panel #}
+
 <style>
-  .fc-grid{
-    display:grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap:16px;
-  }
-  .fc-flip{
-    perspective:1200px;
-  }
+  .fc-flip{ perspective:1200px; }
   .fc-inner{
     position:relative;
     width:100%;
-    min-height:180px;
+    min-height:320px;
     transform-style:preserve-3d;
     transition: transform .6s cubic-bezier(.2,.6,.2,1);
     cursor:pointer;
   }
-  .fc-inner.flipped{
-    transform: rotateY(180deg);
-  }
+  .fc-inner.flipped{ transform: rotateY(180deg); }
 
-  .fc-front,
-  .fc-back{
-    position:absolute;
-    inset:0;
-    background:#062d8e;
-    color:#eaeefc;
+  .fc-front,.fc-back{
+    position:absolute; inset:0;
+    background:linear-gradient(135deg, #0ea5e9 0%, #7c3aed 70%);
+    color:#fff;
     border-radius:16px;
     padding:18px;
-    backface-visibility: hidden;
-    box-shadow:0 8px 24px rgba(15,23,42,.25);
-    display:flex;
-    flex-direction:column;
-    justify-content:center;
-    align-items:center;
-    text-align:center;
+    backface-visibility:hidden;
+    box-shadow:0 10px 28px rgba(15,23,42,.35);
+    display:flex; flex-direction:column;
   }
-  .fc-back{
-    transform: rotateY(180deg);
-  }
-  .fc-title{
-    opacity:.8;
-    margin-bottom:6px;
-  }
-  .fc-text{
-    white-space:pre-wrap;
-    line-height:1.45;
-    font-size:0.95rem;
-    width:100%;
-  }
+  .fc-back{ transform: rotateY(180deg); }
 
-  /* علشان أزرار الـ Edit/Delete تطلع فى الضهر بشكل مرتب */
-  .fc-back .fc-view{
-    width:100%;
-  }
+  .fc-title{ opacity:.8; margin-bottom:6px; }
+  .fc-text{ white-space:pre-wrap; line-height:1.4; }
+  .fc-text, .fc-text *{ color:#fff !important; }
 
-  /* htmx indicators داخل الأزرار */
   .htmx-indicator{ display:none; }
   .htmx-request .htmx-indicator{ display:inline-block !important; }
+
+  .fc-slider{ display:flex; align-items:center; gap:12px; }
+  .fc-viewport{ overflow:hidden; flex:1; }
+  .fc-track{ display:flex; gap:16px; will-change: transform; transition: transform .45s ease; }
+  .fc-arrow{
+    width:36px; height:36px; border:0; border-radius:50%;
+    background:#0d6efd; color:#fff;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 8px 24px rgba(13,110,253,.35);
+  }
+  .fc-arrow:disabled{ opacity:.4; cursor:not-allowed; box-shadow:none; }
+
+  .fc-slide{ flex:0 0 100%; }
+  @media (min-width: 992px){
+    .fc-slide{ flex:0 0 50%; }
+  }
+
+  .fc-back{ justify-content:flex-start; align-items:stretch; text-align:left; }
+  .fc-back .fc-view,
+  .fc-back .fc-edit{
+    display:flex; flex-direction:column; width:100%; height:100%;
+  }
+  .fc-back .fc-edit{ overflow-y:auto; }
+  .fc-back .fc-view .d-flex.justify-content-between,
+  .fc-back .fc-edit .d-flex.justify-content-between{
+    margin-top:auto;
+  }
+
+  .fc-inner.editing{ min-height:360px; cursor:default; }
+  .fc-add-btn{ display:flex; align-items:center; justify-content:center; gap:8px; }
 </style>
 
-{# ------------ JS: flip + tabs + edit + reset form ------------ #}
 <script>
 (function(){
-  // ========= Flip =========
+  // ===== Flip =====
   function bindFlips(root){
     root.querySelectorAll('[data-flip]').forEach(el=>{
       if (el._flipBound) return;
@@ -205,7 +230,7 @@
     });
   }
 
-  // ========= Tabs (Admin / My) =========
+  // ===== Tabs =====
   function bindTabs(){
     const tabs = document.querySelectorAll('#fc-tabs [data-target]');
     const sections = document.querySelectorAll('.fc-section');
@@ -217,7 +242,6 @@
       btn.addEventListener('click', ()=>{
         tabs.forEach(b=>b.classList.remove('active'));
         btn.classList.add('active');
-
         const target = btn.getAttribute('data-target');
         sections.forEach(sec=>{
           if ('#'+sec.id === target){
@@ -230,34 +254,83 @@
     });
   }
 
-  // ========= Edit / Cancel =========
+  // ===== Edit / Cancel =====
   function bindEditToggles(root){
+    // Edit
     root.querySelectorAll('.fc-edit-toggle').forEach(btn=>{
       if (btn.dataset.bound === "1") return;
       btn.dataset.bound = "1";
       btn.addEventListener('click', ()=>{
-        const back = btn.closest('.fc-back');
+        const card = btn.closest('.fc-flip');
+        const back = card?.querySelector('.fc-back') || btn.closest('.fc-back');
         if (!back) return;
         const view = back.querySelector('.fc-view');
         const form = back.querySelector('.fc-edit');
         if (!view || !form) return;
         view.classList.add('d-none');
         form.classList.remove('d-none');
+        const inner = card?.querySelector('.fc-inner');
+        if (inner) inner.classList.add('editing');
       });
     });
-
+    // Cancel
     root.querySelectorAll('.fc-edit-cancel').forEach(btn=>{
       if (btn.dataset.bound === "1") return;
       btn.dataset.bound = "1";
       btn.addEventListener('click', ()=>{
-        const back = btn.closest('.fc-back');
-        if (!back) return;
+        const card = btn.closest('.fc-flip');
+        const back = card?.querySelector('.fc-back');
+        if (!back || !card) return;
         const view = back.querySelector('.fc-view');
         const form = back.querySelector('.fc-edit');
         if (!view || !form) return;
         form.classList.add('d-none');
         view.classList.remove('d-none');
+        const inner = card?.querySelector('.fc-inner');
+        if (inner) inner.classList.remove('editing');
       });
+    });
+  }
+
+  // ===== Slider =====
+  function initSlider(slider){
+    const viewport = slider.querySelector('.fc-viewport');
+    const track = slider.querySelector('.fc-track');
+    const prev = slider.querySelector('.fc-prev');
+    const next = slider.querySelector('.fc-next');
+    const gap = 16;
+    let current = 0;
+
+    const slidesEl = () => track.querySelectorAll('.fc-slide');
+    const perPage  = () => window.matchMedia('(min-width: 992px)').matches ? 2 : 1;
+    const maxPage  = () => Math.max(0, Math.ceil(slidesEl().length / perPage()) - 1);
+
+    function layout(){
+      const pp = perPage();
+      const slideW = Math.floor((viewport.clientWidth - gap*(pp-1)) / pp);
+      track.style.gap = `${gap}px`;
+      slidesEl().forEach(s => s.style.flex = `0 0 ${slideW}px`);
+      apply();
+    }
+    function apply(){
+      track.style.transform = `translateX(-${viewport.clientWidth * current}px)`;
+      prev.disabled = (current === 0);
+      next.disabled = (current >= maxPage());
+    }
+
+    prev.addEventListener('click', (e)=>{ e.stopPropagation(); current = Math.max(0, current - 1); apply(); });
+    next.addEventListener('click', (e)=>{ e.stopPropagation(); current = Math.min(maxPage(), current + 1); apply(); });
+
+    window.addEventListener('resize', layout);
+    slider._reLayout = layout;
+    layout();
+  }
+
+  function bindSliders(root){
+    root.querySelectorAll('.fc-slider').forEach(slider=>{
+      if (slider._sliderBound) return;
+      slider._sliderBound = true;
+      initSlider(slider);
     });
   }
 
@@ -267,22 +340,20 @@
     bindFlips(panel);
     bindTabs();
     bindEditToggles(panel);
+    bindSliders(panel);
   }
 
-  // أول تحميل
   document.addEventListener('DOMContentLoaded', rebindAll);
   rebindAll();
 
-  // بعد أى swap من HTMX جوه panel
   document.body.addEventListener('htmx:afterSwap', (e)=>{
     const panel = document.getElementById('fc-panel');
     if (!panel) return;
-    if (e.target === panel || panel.contains(e.target)) {
+    if (e.target === panel || panel.contains(e.target)){
       rebindAll();
+      panel.querySelectorAll('.fc-slider').forEach(s=>{ if (s._reLayout) s._reLayout(); });
     }
-
-    // لو اللى اتحدّث هو قائمة كروتّى → صفّر الفورم يدويًا احتياطًا
-    if (e.target.id === 'fc-mine-list') {
+    if (e.target.id === 'fc-mine-track'){
       const form = panel.querySelector('form');
       if (form) form.reset();
     }

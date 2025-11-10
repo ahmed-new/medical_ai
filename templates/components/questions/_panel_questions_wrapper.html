@@ -1,13 +1,59 @@
-<div class="card-soft p-3">
-  <h5 class="mb-3">Questions</h5>
+{# components/questions/_panel_questions_wrapper.html #}
+{# expects: lesson_id, subject_id, source, kind, exam_year, part_type, limit, qtype #}
 
-  <div
-    id="q-panel-body"
-    hx-get="{% url 'web_questions_list' %}?subject_id={{ subject_id }}{% if lesson_id %}&lesson_id={{ lesson_id }}{% endif %}{% if source %}&source={{ source }}{% endif %}{% if kind %}&kind={{ kind }}{% endif %}{% if exam_year %}&exam_year={{ exam_year }}{% endif %}{% if part_type %}&part_type={{ part_type }}{% endif %}"
-    hx-trigger="load"
-    hx-target="this"
-    hx-swap="innerHTML"
-  >
-    <div class="text-muted small">Loading…</div>
+<div class="card-soft p-3 mb-3">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <div>
+      <div class="fw-semibold">Questions</div>
+      <div class="text-muted small">
+        Choose the question type to start a focused exam-style session in a popup window.
+      </div>
+    </div>
+  </div>
+
+  <div id="q-landing" class="d-flex gap-2">
+    <button type="button"
+            class="btn btn-primary btn-sm"
+            data-bs-toggle="modal" data-bs-target="#q-modal"
+            hx-get="{% url 'web_questions_list' %}?qtype=mcq&limit={{ limit }}{% if subject_id %}&subject_id={{ subject_id }}{% endif %}{% if lesson_id %}&lesson_id={{ lesson_id }}{% endif %}{% if source %}&source={{ source }}{% endif %}{% if kind %}&kind={{ kind }}{% endif %}{% if exam_year %}&exam_year={{ exam_year }}{% endif %}{% if part_type %}&part_type={{ part_type }}{% endif %}"
+            hx-target="#q-panel-body" hx-swap="innerHTML">
+      MCQ
+    </button>
+
+    <button type="button"
+            class="btn btn-outline-primary btn-sm"
+            data-bs-toggle="modal" data-bs-target="#q-modal"
+            hx-get="{% url 'web_questions_list' %}?qtype=written&limit={{ limit }}{% if subject_id %}&subject_id={{ subject_id }}{% endif %}{% if lesson_id %}&lesson_id={{ lesson_id }}{% endif %}{% if source %}&source={{ source }}{% endif %}{% if kind %}&kind={{ kind }}{% endif %}{% if exam_year %}&exam_year={{ exam_year }}{% endif %}{% if part_type %}&part_type={{ part_type }}{% endif %}"
+            hx-target="#q-panel-body" hx-swap="innerHTML">
+      Written
+    </button>
+
+    <!-- NEW: Incorrect answers -->
+    <button type="button"
+            class="btn btn-outline-danger btn-sm"
+            data-bs-toggle="modal" data-bs-target="#q-modal"
+            hx-get="{% url 'web_questions_list' %}?qtype=mcq&limit={{ limit }}{% if subject_id %}&subject_id={{ subject_id }}{% endif %}{% if lesson_id %}&lesson_id={{ lesson_id }}{% endif %}{% if source %}&source={{ source }}{% endif %}{% if kind %}&kind={{ kind }}{% endif %}{% if exam_year %}&exam_year={{ exam_year }}{% endif %}{% if part_type %}&part_type={{ part_type }}{% endif %}&incorrect_only=1"
+            hx-target="#q-panel-body" hx-swap="innerHTML">
+      Incorrect answers
+    </button>
+  </div>
+</div>
+
+{# ===== Modal that will host the real questions panel ===== #}
+<div class="modal fade" id="q-modal" tabindex="-1" aria-labelledby="q-modal-label" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="q-modal-label">Questions session</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="q-panel-body">
+          <div class="text-muted small">
+            Choose MCQ or Written to load questions.
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>

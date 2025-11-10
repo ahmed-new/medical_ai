@@ -135,6 +135,7 @@ def answer_with_gemini(question: str, context: str, student_name: str = "Student
     Do NOT include any citations, bracketed references, source IDs, URLs, or a "References" section in your answer.
 
     Style rules:
+    - Language rule: if the user asks for Arabic or writes the question in Arabic, respond fully in Modern Standard Arabic, using clear and simple educational style.. Otherwise answer in English.
     - Start your first sentence by addressing the student by name: "{student_name}, ..."
     - Use a warm, friendly, encouraging tone, as if you are a kind senior doctor teaching a junior.
     - Prefer concise sentences and bullet points/steps where helpful.
@@ -154,6 +155,7 @@ def answer_with_gemini(question: str, context: str, student_name: str = "Student
     {context}""".strip()
 
 
+
     payload = {
         "contents": [{"role": "user", "parts": [{"text": prompt}]}],
         "generationConfig": {"temperature": 0.2, "maxOutputTokens": 512},
@@ -165,11 +167,7 @@ def answer_with_gemini(question: str, context: str, student_name: str = "Student
             {"category": "HARM_CATEGORY_CIVIC_INTEGRITY",   "threshold": "BLOCK_NONE"},
         ],
     }
-    print(">>> received history:", history)
-
-    print("=== convo_block ===")
-    print(convo_block)
-    print("====================")
+    
 
     try:
         r = requests.post(url, headers=headers, json=payload, timeout=30)
@@ -197,8 +195,11 @@ def answer_with_gemini(question: str, context: str, student_name: str = "Student
     if not text:
         return "I couldn't generate an answer from the provided references."
 
+     # شيل أى سطر بعنوان References
     text = re.sub(r'(?im)^\s*references\s*:?.*$', "", text)
     text = re.sub(r'\[[^\]\n]{1,120}\]', "", text)
+    text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
+    text = re.sub(r'(?m)^\s*[\*\-]\s+', '', text)
     text = re.sub(r'[ \t]+', " ", text).strip()
     text = re.sub(r'\n{3,}', "\n\n", text)
 

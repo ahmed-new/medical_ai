@@ -1,40 +1,222 @@
 {% extends "base.html" %}
-{% block title %}Questions{% endblock %}
+{% block title %}Questions · Axonelix{% endblock %}
+
+{% block extra_head %}
+<style>
+  /* hero كما هو */
+  .qb-hero { border-radius: 20px; overflow: hidden; }
+  .qb-hero .card-body { display: flex; align-items: center; gap: 16px; }
+  .qb-steps { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .qb-step { background: rgba(255,255,255,.12); color: #fff; border-radius: 12px; padding: 10px 12px; display: flex; align-items: center; gap: 10px; font-size: .95rem; }
+  .qb-step .badge { background: rgba(255,255,255,.2); color: #fff; border-radius: 999px; padding: 6px 10px; font-weight: 700; }
+
+  /* تحديثات شكل القوائم */
+  .qb-list .list-group-item {
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    margin-bottom: 8px;
+    background: var(--bg-white);
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 12px;
+    transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+    box-shadow: 0 6px 18px rgba(15,23,42,.06);
+  }
+  .qb-list .list-group-item:hover {
+    transform: translateY(-1px);
+    background: linear-gradient(90deg, rgba(59,130,246,.08), rgba(139,92,246,.08));
+    box-shadow: 0 10px 24px rgba(15,23,42,.10);
+  }
+
+  /* شارة حديثة */
+  .qb-badge {
+    background: var(--gradient-primary);
+    color: #fff !important;
+    border-radius: 999px;
+    font-size: .75rem;
+    padding: 4px 10px;
+    box-shadow: 0 8px 18px rgba(15,23,42,.08);
+  }
+
+  /* عناوين الأقسام */
+  .qb-left h6, .qb-right h6 { font-weight: 700; margin-bottom: 8px; }
+  .qb-sub { color: var(--muted); font-size: .9rem; }
+
+  /* توحيد البطاقات داخل اليمين */
+  #q-main-panel .card-soft { border-radius: 16px; }
+
+  /* تحسين الـ badges الموجودة مسبقًا */
+  #q-semesters .badge, #q-modules .badge, #q-main-panel .badge {
+    border-radius: 999px; padding: 4px 10px; font-weight: 600;
+  }
+
+    /* Modern panel titles */
+    .qb-title {
+        display: flex;
+        align-items: center;
+        gap: .75rem;
+        padding: .5rem .75rem;
+        background: #fbfcff;
+        border: 1px solid #eef0f2;
+        border-radius: 12px;
+        box-shadow: 0 1px 0 rgba(20,20,20,.05);
+    }
+    .qb-title .accent {
+        width: 14px;
+        height: 26px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #6C63FF, #40C9FF);
+        box-shadow: 0 6px 18px rgba(64, 201, 255, .25);
+    }
+    .qb-title h5,
+    .qb-title h6 {
+        margin: 0;
+        font-weight: 800;
+        letter-spacing: .3px;
+    }
+
+    /* Color variants per panel */
+    .qb-title.semesters .accent { background: linear-gradient(135deg, #8B5CF6, #22D3EE); }
+    .qb-title.modules   .accent { background: linear-gradient(135deg, #F59E0B, #EF4444); }
+    .qb-title.subjects  .accent { background: linear-gradient(135deg, #10B981, #3B82F6); }
+    .qb-title.parts     .accent { background: linear-gradient(135deg, #EC4899, #A855F7); }
+    .qb-title.chapters  .accent { background: linear-gradient(135deg, #6366F1, #14B8A6); }
+    .qb-title.lessons   .accent { background: linear-gradient(135deg, #F43F5E, #FB923C); }
+    .qb-title.years     .accent { background: linear-gradient(135deg, #0EA5E9, #22C55E); }
+    .qb-title.exams     .accent { background: linear-gradient(135deg, #FF6B6B, #FBBF24); }
+
+    /* Stronger navigation items */
+    .qb-list .qb-item {
+        font-weight: 600;
+        letter-spacing: .2px;
+        border: 1px solid #eaeef3;
+        border-left: 4px solid transparent;
+        transition: all .15s ease;
+    }
+    .qb-list .qb-item:hover {
+        background: #f9fbff;
+        border-left-color: #6C63FF;
+        transform: translateY(-1px);
+    }
+    .qb-list .qb-item.active,
+    .qb-list .qb-item[aria-current="true"] {
+        background: #f3f7ff;
+        border-left-color: #22C55E;
+    }
+
+    /* Badge polish */
+    .qb-badge {
+        font-weight: 700;
+        color: #475569;
+        background: #eef4ff;
+        border: 1px solid #dbe7ff;
+        border-radius: 999px;
+        padding: 0.1rem .5rem;
+        box-shadow: 0 1px 0 rgba(0,0,0,.06);
+    }
+    /* Stronger, visible badges */
+    .badge.qb-badge {
+        color: #ffffff !important;
+        background: linear-gradient(135deg, #4f46e5, #06b6d4) !important;
+        border: none !important;
+        border-radius: 999px;
+        padding: 0.18rem 0.6rem;
+        font-weight: 700;
+        letter-spacing: .2px;
+        box-shadow: 0 4px 12px rgba(79, 70, 229, .25);
+    }
+    /* Variant for locked/premium states */
+    .badge.qb-badge.qb-badge-warn {
+        background: linear-gradient(135deg, #f59e0b, #ef4444) !important;
+        color: #ffffff !important;
+        box-shadow: 0 4px 12px rgba(239, 68, 68, .25);
+    }
+    /* Fix legacy light badges so they remain visible */
+    .badge.bg-light.text-muted {
+        background-color: #e0f2fe !important; /* light cyan */
+        color: #0c4a6e !important;            /* readable text */
+        border: 1px solid #93c5fd !important;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4">
+<div class="container py-3" style="max-width: 1100px;">
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h3 class="page-title mb-0">Questions</h3>
+      <small class="page-subtitle">Browse by semester → module → source</small>
+    </div>
+    <a href="/home/" class="btn btn-link btn-sm">← Back to home</a>
+  </div>
 
   {% if can_view_questions %}
-    <div class="row">
+    <!-- Hero -->
+    <div class="card card-gradient qb-hero mb-3">
+      <div class="card-body">
+        <div class="flex-grow-1">
+          <div class="fw-bold fs-5 mb-1">Question bank</div>
+          <div class="small opacity-75 mb-2">
+            Choose a semester, open a module, then pick the question source (QBank, exam review, or old exams).
+          </div>
+          <div class="qb-steps">
+            <div class="qb-step"><span class="badge">1</span> Pick semester</div>
+            <div class="qb-step"><span class="badge">2</span> Open module</div>
+            <div class="qb-step"><span class="badge">3</span> Choose source</div>
+            <div class="qb-step"><span class="badge">4</span> Start solving</div>
+          </div>
+        </div>
+        <div class="ms-auto">
+          <a href="/materials/" class="btn btn-light">Study materials</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-3">
       <!-- left -->
-      <div class="col-md-3">
-        <div class="card-soft mb-3">
-          <h5 class="mb-3">Semesters</h5>
+      <div class="col-md-4 col-lg-3 qb-left">
+        <div class="card-soft p-3 mb-3">
+          <h6 class="mb-1">Semesters</h6>
+          <div class="qb-sub mb-2">Select a semester to load modules.</div>
           <div
             id="q-semesters"
+            class="qb-list"
             hx-get="{% url 'q_nav_semesters' %}"
             hx-trigger="load"
             hx-target="#q-semesters"
             hx-swap="innerHTML"
-            hx-indicator="#q-loading"
-          >
-            <p class="text-muted">Loading…</p>
+            hx-indicator="#q-loading">
+            <div class="text-muted small"><span class="spinner-border spinner-border-sm me-1"></span> Loading…</div>
           </div>
         </div>
 
-        <div class="card-soft">
-          <h5 class="mb-3">Modules</h5>
-          <div id="q-modules">
-            <p class="text-muted mb-0">Select semester first.</p>
+        <div class="card-soft p-3">
+          <h6 class="mb-1">Modules</h6>
+          <div class="qb-sub mb-2">Pick a semester first.</div>
+          <div id="q-modules" class="qb-list">
+            <p class="text-muted mb-0">—</p>
           </div>
+        </div>
+
+        <div class="qb-tip mt-3">
+          Tip: After opening a module, choose the question source to browse subjects, parts, and lessons.
         </div>
       </div>
 
       <!-- right -->
-      <div class="col-md-9">
+      <div class="col-md-8 col-lg-9 qb-right">
         <div id="q-main-panel">
-          <div class="card-soft p-4 text-muted">
-            Select a module to browse questions.
+          <div class="card-soft p-4">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <div>
+                <div class="fw-semibold">Start by opening a module</div>
+                <div class="qb-sub">Then choose the source (QBank, exam review, or old exams).</div>
+              </div>
+              <span class="spinner-border spinner-border-sm d-none htmx-indicator" role="status"></span>
+            </div>
+            <p class="text-muted mb-0">
+              Use the left sidebar to select a semester and module. Then choose the source (QBank, exam review, or old exams) to load the question types panel.
+            </p>
           </div>
         </div>
       </div>
@@ -43,15 +225,14 @@
   {% else %}
     <div class="row justify-content-center">
       <div class="col-md-8 col-lg-6">
-        <div class="card-soft p-4 text-center">
-          <h3 class="mb-2">Question bank is locked</h3>
-          <p class="text-muted mb-3">
-            Questions are not available on your current plan.
-            Upgrade your subscription to unlock the full question bank and exam-style practice.
-          </p>
-          <a href="{% url 'web_plans' %}" class="btn btn-primary">
-            View plans & upgrade
-          </a>
+        <div class="card card-gradient text-white text-start">
+          <div class="card-body">
+            <h4 class="fw-bold mb-2">Question bank is locked</h4>
+            <p class="mb-3">
+              Questions are not available on your current plan. Upgrade your subscription to unlock the full question bank and exam-style practice.
+            </p>
+            <a href="{% url 'web_plans' %}" class="btn btn-light">View plans & upgrade</a>
+          </div>
         </div>
       </div>
     </div>

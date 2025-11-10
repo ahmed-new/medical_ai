@@ -1,14 +1,13 @@
-{# templates/components/_questions_load_more.html #}
-<div id="q-load-more" hx-swap-oob="true" class="mt-3 text-center">
-  {% if has_more %}
-    <button
-      class="btn btn-outline-secondary btn-sm"
-      hx-get="{% url 'web_lesson_questions' lesson_id=lesson_id %}?mode=list&limit={{ limit }}&offset={{ next_offset }}"
-      hx-target="#q-list"
-      hx-swap="beforeend">
-      Load more
-    </button>
-  {% else %}
-    <span class="text-muted small">No more questions.</span>
-  {% endif %}
-</div>
+{# components/questions/_questions_load_more.html #}
+{% if has_more %}
+  <button
+    class="btn btn-outline-secondary btn-sm"
+    hx-get="{% url 'web_questions_list' %}?limit={{ limit }}&offset={{ next_offset }}&qtype={{ qtype }}{% if subject_id %}&subject_id={{ subject_id }}{% endif %}{% if lesson_id %}&lesson_id={{ lesson_id }}{% endif %}{% if source %}&source={{ source }}{% endif %}{% if kind %}&kind={{ kind }}{% endif %}{% if exam_year %}&exam_year={{ exam_year }}{% endif %}{% if part_type %}&part_type={{ part_type }}{% endif %}"
+    hx-target="#q-list"
+    hx-swap="beforeend">
+    <span class="spinner-border spinner-border-sm me-1 htmx-indicator" role="status"></span>
+    Load more
+  </button>
+{% else %}
+  <span class="text-muted small">No more questions.</span>
+{% endif %}

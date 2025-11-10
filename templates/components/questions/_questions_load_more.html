@@ -3,7 +3,8 @@
   {% if has_more %}
     <button
       class="btn btn-outline-secondary btn-sm"
-      hx-get="{% url 'web_questions_list' %}?mode=list&limit={{ limit }}&offset={{ next_offset }}&qtype={{ qtype }}{% if subject_id %}&subject_id={{ subject_id }}{% endif %}{% if lesson_id %}&lesson_id={{ lesson_id }}{% endif %}{% if source %}&source={{ source }}{% endif %}{% if kind %}&kind={{ kind }}{% endif %}{% if exam_year %}&exam_year={{ exam_year }}{% endif %}{% if part_type %}&part_type={{ part_type }}{% endif %}"
+      hx-get="{% url 'web_questions_list' %}?mode=list&offset={{ next_offset }}&qtype={{ qtype }}{% if subject_id %}&subject_id={{ subject_id }}{% endif %}{% if lesson_id %}&lesson_id={{ lesson_id }}{% endif %}{% if source %}&source={{ source }}{% endif %}{% if kind %}&kind={{ kind }}{% endif %}{% if exam_year %}&exam_year={{ exam_year }}{% endif %}{% if part_type %}&part_type={{ part_type }}{% endif %}{% if incorrect_only %}&incorrect_only=1{% endif %}"
+      hx-include="#q-filter input[name=limit]"
       hx-target="#q-list"
       hx-swap="beforeend">
       Load more

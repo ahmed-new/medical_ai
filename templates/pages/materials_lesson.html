@@ -6,12 +6,31 @@
   .lesson-header { border-radius: 16px; box-shadow: 0 12px 28px rgba(15,23,42,.07); }
   .lesson-title { font-weight: 800; font-size: 1.25rem; color: var(--brand-primary); }
   .meta { display:flex; flex-wrap:wrap; gap:8px; }
-  .meta-chip { display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px; font-weight:600; border:1px solid var(--border-color); background: var(--bg-white); color: var(--muted); }
+  .meta-chip {
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:4px 10px;
+    border-radius:999px;
+    font-weight:600;
+    border:1px solid var(--border-color);
+    background: var(--bg-white);
+    color: var(--muted);
+  }
   .meta-chip.primary { color: var(--brand-primary); border-color: var(--brand-primary); }
   .lesson-actions .btn, .lesson-actions span { display:inline-flex; align-items:center; }
   .reading-progress { position: sticky; top: 0; height: 3px; background: rgba(0,0,0,.06); border-radius: 999px; overflow: hidden; }
   .reading-progress .bar { height: 100%; width: 0%; background: var(--brand-primary); transition: width .12s ease; }
   .nav-tabs .nav-link { font-weight: 600; }
+
+  /* === Full-width mode for lesson content === */
+  #lesson-layout.lesson-fullscreen > .col-lg-8 {
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
+  #lesson-layout.lesson-fullscreen > .col-lg-4 {
+    display: none;
+  }
 </style>
 {% endblock %}
 
@@ -52,7 +71,7 @@
   <div class="reading-progress mt-2"><div id="reading-bar" class="bar"></div></div>
 </div>
 
-<div class="row g-3">
+<div class="row g-3" id="lesson-layout">
   <div class="col-12 col-lg-8">
 
     <div class="card-soft p-3 mb-3">
@@ -81,7 +100,7 @@
         <a class="nav-link"
            data-bs-toggle="tab"
            href="#tab-questions"
-           hx-get="{% url 'web_lesson_questions' lesson_id=lesson_id %}"
+           hx-get="{% url 'q_panel_questions' %}?lesson_id={{ lesson_id }}"
            hx-trigger="click"
            hx-target="#tab-questions"
            hx-swap="innerHTML"
@@ -112,6 +131,13 @@
         {% else %}
           {% if lesson.content %}
             <div class="card-soft p-3">
+              <div class="d-flex justify-content-end mb-2">
+                <button type="button"
+                        class="btn btn-outline-secondary btn-sm"
+                        id="btn-fullscreen-toggle">
+                  ⤢ Full width
+                </button>
+              </div>
               <div id="lesson-content" class="lesson-content">{{ lesson.content|safe }}</div>
             </div>
           {% else %}
@@ -128,7 +154,7 @@
         <div class="text-muted small">Click “Questions” to load.</div>
       </div>
 
-      {# Flashcards pane (HTMX fills it) — كان ناقص ده #}
+      {# Flashcards pane (HTMX fills it) #}
       <div id="tab-flashcards" class="tab-pane fade position-relative">
         <div id="fc-loading" class="position-absolute top-0 end-0 me-2 mt-2 d-none">
           <span class="spinner-border spinner-border-sm"></span>
@@ -171,6 +197,18 @@
     }
     document.addEventListener('scroll', onScroll, { passive: true });
     onScroll();
+  })();
+
+  // Full-width toggle for lesson content
+  (function() {
+    var layout = document.getElementById('lesson-layout');
+    var btn    = document.getElementById('btn-fullscreen-toggle');
+    if (!layout || !btn) return;
+
+    btn.addEventListener('click', function () {
+      var isFull = layout.classList.toggle('lesson-fullscreen');
+      btn.textContent = isFull ? '↩ Exit full width' : '⤢ Full width';
+    });
   })();
 </script>
 {% endblock %}

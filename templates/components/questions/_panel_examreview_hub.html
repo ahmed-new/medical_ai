@@ -1,14 +1,14 @@
 {# expects: module_id, allow_exam_review, allow_tbl, allow_flipped #}
-
 <div class="card-soft p-4">
-  <h4 class="mb-3">Exam review</h4>
+  <div class="qb-title exams mb-3">
+    <span class="accent"></span>
+    <h5 class="m-0">Exam Review</h5>
+  </div>
   <p class="small text-muted mb-4">
     Solve questions taken from real exams for this module.
   </p>
 
   <div class="list-group">
-
-    {# Finals #}
     <button
       class="list-group-item list-group-item-action d-flex justify-content-between align-items-center
              {% if not allow_exam_review %}disabled text-muted{% endif %}"
@@ -20,12 +20,9 @@
       {% endif %}
       type="button">
       <span>Finals</span>
-      {% if not allow_exam_review %}
-        <span class="badge bg-light text-muted">Premium+</span>
-      {% endif %}
+      {% if not allow_exam_review %}<span class="badge qb-badge qb-badge-warn">Premium+</span>{% endif %}
     </button>
 
-    {# MidTerm #}
     <button
       class="list-group-item list-group-item-action d-flex justify-content-between align-items-center
              {% if not allow_exam_review %}disabled text-muted{% endif %}"
@@ -38,28 +35,28 @@
       type="button">
       <span>MidTerm</span>
       {% if not allow_exam_review %}
-        <span class="badge bg-light text-muted">Premium+</span>
+        <span class="badge qb-badge qb-badge-warn">Premium+</span>
       {% endif %}
     </button>
 
     {# TPL & Flipped #}
-    {% with allow_tpl_flipped=(allow_exam_review and (allow_tbl or allow_flipped)) %}
+    {% if allow_exam_review and allow_tbl or allow_exam_review and allow_flipped %}
       <button
-        class="list-group-item list-group-item-action d-flex justify-content-between align-items-center
-               {% if not allow_tpl_flipped %}disabled text-muted{% endif %}"
-        {% if allow_tpl_flipped %}
-          hx-get="{% url 'q_panel_subjects' %}?module_id={{ module_id }}&source=exam_review&kind=tpl_flipped"
-          hx-target="#q-main-panel"
-          hx-swap="innerHTML"
-          hx-indicator="#q-loading"
-        {% endif %}
+        class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+        hx-get="{% url 'q_panel_subjects' %}?module_id={{ module_id }}&source=exam_review&kind=tpl_flipped"
+        hx-target="#q-main-panel"
+        hx-swap="innerHTML"
+        hx-indicator="#q-loading"
         type="button">
         <span>TPL &amp; Flipped</span>
-        {% if not allow_tpl_flipped %}
-          <span class="badge bg-light text-muted">Advanced</span>
-        {% endif %}
       </button>
-    {% endwith %}
-
+    {% else %}
+      <button
+        class="list-group-item list-group-item-action d-flex justify-content-between align-items-center disabled text-muted"
+        type="button">
+        <span>TPL &amp; Flipped</span>
+        <span class="badge qb-badge qb-badge-warn">Advanced</span>
+      </button>
+    {% endif %}
   </div>
 </div>

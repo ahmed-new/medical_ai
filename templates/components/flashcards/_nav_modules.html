@@ -8,22 +8,23 @@
   </button>
 </div>
 
-<h6 class="small text-muted mb-2">Modules</h6>
-
-<div class="list-group list-group-flush small">
+<div class="fc-title modules mb-2">
+  <span class="accent"></span>
+  <h6 class="m-0">Modules</h6>
+</div>
+<div class="list-group list-group-flush small fc-list">
   {% if modules %}
     {% for m in modules %}
-        <button
-          class="list-group-item list-group-item-action"
-          hx-get="{% url 'fc_panel_subjects' %}?module_id={{ m.id }}&module_name={{ m.name|urlencode }}"
-          hx-target="#fc-main-panel"
-          hx-swap="innerHTML"
-          hx-indicator="#fc-main-spin"
-        >
-          {{ m.name }}
-        </button>
-      {% endfor %}
-
+      <button
+        class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+        hx-get="{% url 'fc_panel_subjects' %}?module_id={{ m.id }}&module_name={{ m.name|urlencode }}"
+        hx-target="#fc-main-panel"
+        hx-swap="innerHTML"
+        hx-indicator="#fc-main-spin">
+        <span>{{ m.name }}</span>
+        <span class="badge fc-badge">open</span>
+      </button>
+    {% endfor %}
   {% else %}
     <div class="text-muted small">No modules for this semester.</div>
   {% endif %}

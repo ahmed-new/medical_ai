@@ -1,16 +1,21 @@
-{% for m in modules %}
-  <div class="d-flex justify-content-between align-items-center mb-2">
-    <span>{{ m.name }}</span>
+<div class="qb-title modules mb-2">
+  <span class="accent"></span>
+  <h6 class="m-0">Modules</h6>
+</div>
+<div class="list-group list-group-flush small">
+ 
+  {% for m in modules %}
     <button
-      class="btn btn-primary btn-sm"
+      class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
       hx-get="{% url 'q_panel_module_hub' %}?module_id={{ m.id }}"
       hx-target="#q-main-panel"
       hx-swap="innerHTML"
-      hx-indicator="#q-loading"
-    >
-      Open
+      hx-indicator="#q-loading">
+      <span>{{ m.name }}</span>
+      <span class="badge qb-badge">open</span>
     </button>
-  </div>
-{% empty %}
-  <p class="text-muted mb-0">No modules.</p>
-{% endfor %}
+  {% empty %}
+    <div class="text-muted small">No modules.</div>
+  {% endfor %}
+ 
+</div>

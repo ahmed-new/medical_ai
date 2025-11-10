@@ -1,6 +1,68 @@
 {% extends "base.html" %}
 
 {% block content %}
+<style>
+  /* Modern titles with accent */
+  .fc-title {
+    display: inline-flex; align-items: center; gap: .6rem;
+    background: #fbfcff; border: 1px solid #eef0f2;
+    border-radius: 12px; padding: .4rem .6rem;
+    box-shadow: 0 1px 0 rgba(20,20,20,.05);
+  }
+  .fc-title .accent {
+    width: 12px; height: 24px; border-radius: 8px;
+    background: linear-gradient(135deg, #6C63FF, #40C9FF);
+    box-shadow: 0 6px 18px rgba(64,201,255,.25);
+  }
+  .fc-title h6, .fc-title h5 { margin: 0; font-weight: 800; letter-spacing: .3px; }
+
+  /* Color variants */
+  .fc-title.semesters .accent { background: linear-gradient(135deg, #8B5CF6, #22D3EE); }
+  .fc-title.modules   .accent { background: linear-gradient(135deg, #F59E0B, #EF4444); }
+  .fc-title.subjects  .accent { background: linear-gradient(135deg, #10B981, #3B82F6); }
+  .fc-title.chapters  .accent { background: linear-gradient(135deg, #6366F1, #14B8A6); }
+  .fc-title.lessons   .accent { background: linear-gradient(135deg, #F43F5E, #FB923C); }
+
+  /* Stronger list items */
+  .fc-list .list-group-item {
+    font-weight: 600; letter-spacing: .2px;
+    border: 1px solid #eaeef3; border-left: 4px solid transparent;
+    transition: all .15s ease;
+  }
+  .fc-list .list-group-item:hover {
+    background: #f9fbff; border-left-color: #6C63FF; transform: translateY(-1px);
+  }
+  .fc-list .list-group-item.active, .fc-list .list-group-item[aria-current="true"] {
+    background: #f3f7ff; border-left-color: #22C55E;
+  }
+
+  /* Visible badges */
+  .badge.fc-badge {
+    color: #fff !important;
+    background: linear-gradient(135deg, #4f46e5, #06b6d4) !important;
+    border: none !important;
+    border-radius: 999px;
+    padding: 0.18rem 0.6rem;
+    font-weight: 700; letter-spacing: .2px;
+    box-shadow: 0 4px 12px rgba(79,70,229,.25);
+  }
+  .badge.fc-badge.fc-badge-admin { background: linear-gradient(135deg, #a855f7, #6366f1) !important; }
+  .badge.fc-badge.fc-badge-order { background: linear-gradient(135deg, #10b981, #3b82f6) !important; }
+
+  /* Tabs for flashcards */
+  .fc-tabs .nav-link {
+    border-radius: 999px; font-weight: 700;
+    border: 1px solid #e5e7eb; color: #334155;
+    padding: .25rem .7rem;
+    background: #fff;
+  }
+  .fc-tabs .nav-link.active {
+    color: #fff; border-color: transparent;
+    background: linear-gradient(135deg, #4f46e5, #06b6d4);
+    box-shadow: 0 6px 14px rgba(79,70,229,.25);
+  }
+</style>
+
 <div class="container py-4">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
@@ -12,7 +74,13 @@
   <div class="row g-3">
     <div class="col-md-4 col-lg-3">
       <div class="card-soft p-3">
-        <h6 class="mb-2">Navigation</h6>
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <div class="fc-title semesters">
+            <span class="accent"></span>
+            <h6 class="m-0">Semesters</h6>
+          </div>
+          <span id="fc-nav-loading" class="spinner-border spinner-border-sm d-none htmx-indicator" role="status"></span>
+        </div>
         <div id="fc-nav"
              hx-get="{% url 'fc_nav_semesters' %}"
              hx-trigger="load"
@@ -24,23 +92,18 @@
     </div>
 
     <div class="col-md-8 col-lg-9">
-     <div id="fc-main-panel"
-        class="card-soft p-3"
-        hx-indicator="#fc-main-spin">
-    <div class="d-flex align-items-center justify-content-between mb-1">
-        <div>
-        <h6 class="mb-0">Flashcards browser</h6>
-        <p class="text-muted small mb-0">
-            Choose a semester, then module, subject, and finally a lesson to view its flashcards.
-        </p>
+     <div id="fc-main-panel" class="card-soft p-3" hx-indicator="#fc-main-spin">
+        <div class="d-flex align-items-center justify-content-between mb-1">
+          <div class="fc-title subjects">
+            <span class="accent"></span>
+            <h6 class="m-0">Flashcards Browser</h6>
+          </div>
+          <span id="fc-main-spin" class="spinner-border spinner-border-sm d-none htmx-indicator" role="status"></span>
         </div>
-        <span id="fc-main-spin"
-            class="spinner-border spinner-border-sm d-none htmx-indicator"
-            role="status"></span>
-    </div>
-    </div>
-
-
+        <p class="text-muted small mb-0">
+          Choose a semester, then module, subject, and finally a lesson to view its flashcards.
+        </p>
+      </div>
     </div>
   </div>
 </div>

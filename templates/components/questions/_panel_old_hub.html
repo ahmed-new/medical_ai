@@ -1,36 +1,29 @@
+<div class="qb-title exams mb-3">
+  <span class="accent"></span>
+  <h5 class="m-0">Old Exams</h5>
+</div>
 <div class="card-soft p-3">
   <h5 class="mb-3">Old Exams</h5>
-  <div class="list-group">
-    <button
-      class="list-group-item list-group-item-action"
-      hx-get="{% url 'q_panel_years' %}?module_id={{ module_id }}&source=old&kind=final"
-      hx-target="#q-main-panel"
-      hx-swap="innerHTML"
-      hx-indicator="#q-loading"
-    >Finals</button>
-
-    <button
-      class="list-group-item list-group-item-action"
-      hx-get="{% url 'q_panel_years' %}?module_id={{ module_id }}&source=old&kind=midterm"
-      hx-target="#q-main-panel"
-      hx-swap="innerHTML"
-      hx-indicator="#q-loading"
-    >MidTerm</button>
-
-    <button
-      class="list-group-item list-group-item-action"
-      hx-get="{% url 'q_panel_years' %}?module_id={{ module_id }}&source=old&kind=tpl"
-      hx-target="#q-main-panel"
-      hx-swap="innerHTML"
-      hx-indicator="#q-loading"
-    >TPL</button>
-
-    <button
-      class="list-group-item list-group-item-action"
-      hx-get="{% url 'q_panel_years' %}?module_id={{ module_id }}&source=old&kind=flipped"
-      hx-target="#q-main-panel"
-      hx-swap="innerHTML"
-      hx-indicator="#q-loading"
-    >Flipped</button>
+  <div class="list-group list-group-flush small">
+    <button class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+            hx-get="{% url 'q_panel_years' %}?module_id={{ module_id }}&source=old&kind=final"
+            hx-target="#q-main-panel" hx-swap="innerHTML" hx-indicator="#q-loading">
+      <span>Finals</span><span class="badge qb-badge">years</span>
+    </button>
+    <button class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+            hx-get="{% url 'q_panel_years' %}?module_id={{ module_id }}&source=old&kind=midterm"
+            hx-target="#q-main-panel" hx-swap="innerHTML" hx-indicator="#q-loading">
+      <span>MidTerm</span><span class="badge qb-badge">years</span>
+    </button>
+    <button class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+            hx-get="{% url 'q_panel_years' %}?module_id={{ module_id }}&source=old&kind=tpl"
+            hx-target="#q-main-panel" hx-swap="innerHTML" hx-indicator="#q-loading">
+      <span>TPL</span><span class="badge qb-badge">years</span>
+    </button>
+    <button class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+            hx-get="{% url 'q_panel_years' %}?module_id={{ module_id }}&source=old&kind=flipped"
+            hx-target="#q-main-panel" hx-swap="innerHTML" hx-indicator="#q-loading">
+      <span>Flipped</span><span class="badge qb-badge">years</span>
+    </button>
   </div>
 </div>

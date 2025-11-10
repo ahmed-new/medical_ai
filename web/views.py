@@ -8,6 +8,7 @@ from django.views.decorators.http import require_POST,require_GET,require_http_m
 from django.utils import timezone
 from datetime import datetime
 import json
+from django.contrib.auth import authenticate, login, logout
 
 
 
@@ -93,6 +94,12 @@ def login_view(request):
             data = r.json()
             request.session["access"] = data.get("access")
             request.session["refresh"] = data.get("refresh")
+
+            # سجل المستخدم في جلسة Django لضمان أن request.user ليس Anonymous
+            user = authenticate(username=username, password=password)
+            if user is not None:
+                login(request, user)
+
             return redirect("web_home")
 
         elif r.status_code == 409:
@@ -112,6 +119,8 @@ def login_view(request):
 
 
 def logout_view(request):
+    # اخرج من جلسة Django أيضًا
+    logout(request)
     request.session.flush()
     return redirect("web_login")
 
@@ -644,15 +653,32 @@ def question_detail_htmx(request, pk: int):
     """تفاصيل سؤال واحد (HTMX fragment) — نعرض النص + الصورة + خيارات لو MCQ."""
     if not _require_auth(request):
         return HttpResponse("Auth", status=401)
+
     try:
-        r = requests.get(f"{API}/v1/edu/questions/{pk}/", headers=_headers(request), timeout=10)
+        r = requests.get(
+            f"{API}/v1/edu/questions/{pk}/",
+            headers=_headers(request),
+            timeout=10,
+        )
         if r.status_code != 200:
-            return HttpResponse("<div class='text-danger small'>Question not found.</div>", status=r.status_code)
+            return HttpResponse(
+                "<div class='text-danger small'>Question not found.</div>",
+                status=r.status_code,
+            )
         q = r.json() or {}
     except Exception:
-        return HttpResponse("<div class='text-danger small'>Network error.</div>", status=502)
+        return HttpResponse(
+            "<div class='text-danger small'>Network error.</div>", status=502
+        )
 
-    html = render_to_string("components/_question_detail.html", {"q": q}, request=request)
+    # 👈 نقرأ المود (normal أو exam) من الـ query string
+    mode = request.GET.get("mode", "normal")
+
+    html = render_to_string(
+        "components/_question_detail.html",
+        {"q": q, "mode": mode},
+        request=request,
+    )
     return HttpResponse(html, status=200)
 
 
@@ -746,9 +772,31 @@ def web_flashcards_panel(request, lesson_id: int):
     except Exception:
         flashcards = []
 
+    # تحقق من صلاحية إنشاء فلاش كاردز حسب خطة المستخدم
+    can_create = False
+    try:
+        me_r = requests.get(f"{API}/auth/me/", headers=_headers(request), timeout=8)
+        if me_r.status_code == 200:
+            me = me_r.json() or {}
+            class _MeProxy:
+                pass
+            proxy = _MeProxy()
+            proxy.plan = me.get("plan") or "none"
+            proxy.is_active_subscription = bool(me.get("is_active_subscription"))
+            can_create = can_use_flashcards(proxy)
+        else:
+            can_create = can_use_flashcards(request.user)
+    except Exception:
+        can_create = can_use_flashcards(request.user)
+
     html = render_to_string(
         "components/_flashcards_panel.html",
-        {"lesson_id": lesson_id, "flashcards": flashcards, "mine": mine},
+        {
+            "lesson_id": lesson_id,
+            "flashcards": flashcards,
+            "mine": mine,
+            "can_create_flashcards": can_create,
+        },
         request=request,
     )
     return HttpResponse(html)  # مهم: HTML مرندر، مش نص خام
@@ -921,7 +969,26 @@ def web_questions_browse(request):
     if not _require_auth(request):
         return redirect("web_login")
 
-    can_q = can_view_questions(request.user)
+    # Try to decide using API session (accurate for token-based auth)
+    can_q = False
+    try:
+        r = requests.get(f"{API}/auth/me/", headers=_headers(request), timeout=8)
+        if r.status_code == 200:
+            me = r.json() or {}
+            # Minimal proxy object with just the fields policy needs
+            class _MeProxy:
+                pass
+            proxy = _MeProxy()
+            proxy.plan = me.get("plan") or "none"
+            proxy.is_active_subscription = bool(me.get("is_active_subscription"))
+            can_q = can_view_questions(proxy)
+        elif r.status_code == 401:
+            return redirect("web_login")
+        else:
+            # Fallback to Django user if API didn’t help
+            can_q = can_view_questions(request.user)
+    except Exception:
+        can_q = can_view_questions(request.user)
 
     return render(request, "pages/questions_browse.html", {
         "can_view_questions": can_q,
@@ -1337,11 +1404,13 @@ def web_questions_list(request):
     qtype      = request.GET.get("qtype")  # مهم: مش هنفترض mcq
     limit      = _q_int(request.GET.get("limit"), 15, 1, 100)
     offset     = _q_int(request.GET.get("offset"), 0, 0)
+    mode       = request.GET.get("mode", "panel")
+    incorrect_only = request.GET.get("incorrect_only")  # '1' | 'true' | 'True' (string)
 
     # 1) لو لسه ما اختارش نوع السؤال → رجّع landing الخاصة بقسم الأسئلة
     if qtype not in ("mcq", "written"):
         html = render_to_string(
-            "components/questions/_questions_landing.html",   # ← النسخة الجديدة
+            "components/questions/_questions_landing.html",
             {
                 "subject_id": subject_id,
                 "lesson_id": lesson_id,
@@ -1350,6 +1419,7 @@ def web_questions_list(request):
                 "exam_year": exam_year,
                 "part_type": part_type,
                 "limit": limit,
+                "incorrect_only": incorrect_only,
             },
             request=request,
         )
@@ -1371,22 +1441,39 @@ def web_questions_list(request):
         if exam_year:
             base += f"&exam_year={exam_year}"
 
+    # NEW: incorrect_only propagation to API
+    if incorrect_only in ("1", "true", "True"):
+        base += "&incorrect_only=1"
+
     try:
         r = requests.get(base, headers=_headers(request), timeout=10)
         if r.status_code != 200:
-            return HttpResponse("<div class='alert alert-secondary'>No questions.</div>", status=200)
+            err = "<div class='alert alert-secondary'>No questions.</div>" if mode == "panel" else ""
+            return HttpResponse(err, status=200 if mode == "panel" else r.status_code)
         data = r.json() or {}
+
+        # Simplified parsing: expect dict with items/total/has_more/next_offset, fallback to list
         if isinstance(data, dict):
             items = data.get("items", []) or []
-            total = data.get("total", 0) or 0
+            total = data.get("total")
+            api_has_more = data.get("has_more")
+            api_next_offset = data.get("next_offset")
         else:
             items = data or []
-            total = offset + len(items)
+            total = None
+            api_has_more = None
+            api_next_offset = None
     except Exception:
-        return HttpResponse("<div class='alert alert-secondary'>Network error.</div>", status=200)
+        err = "<div class='alert alert-secondary'>Network error.</div>" if mode == "panel" else ""
+        return HttpResponse(err, status=200 if mode == "panel" else 502)
 
-    next_offset = offset + len(items)
-    has_more = next_offset < total
+    next_offset = api_next_offset if isinstance(api_next_offset, int) else offset + len(items)
+
+    has_more = (
+        api_has_more if isinstance(api_has_more, bool)
+        else ((isinstance(total, int) and next_offset < total) if isinstance(total, int)
+              else (len(items) >= limit))
+    )
 
     ctx = {
         "items": items,
@@ -1402,7 +1489,13 @@ def web_questions_list(request):
         "kind": kind,
         "exam_year": exam_year,
         "part_type": part_type,
+        "incorrect_only": incorrect_only,
     }
+
+    if mode == "list":
+        html = render_to_string("components/_questions_list_items.html", ctx, request=request)
+        html += render_to_string("components/questions/_questions_load_more.html", ctx, request=request)  # oob
+        return HttpResponse(html, status=200)
 
     html = render_to_string("components/questions/_questions_panel.html", ctx, request=request)
     return HttpResponse(html, status=200)
@@ -1787,7 +1880,7 @@ def web_payment_confirm(request):
         "notes_code": notes_code,
         "reference_no": reference_no,
         "user_note": user_note,
-        "final_price": final_price,   # 👈 المهم
+        "final_price": final_price,   
     }
 
     try:
@@ -2097,7 +2190,22 @@ def fc_panel_flashcards(request):
     except Exception:
         return HttpResponse("<div class='alert alert-secondary'>Network error.</div>", status=200)
 
-    can_create = can_use_flashcards(request.user)  # ✅
+    # Derive plan/subscription from /auth/me for token-only sessions
+    can_create = False
+    try:
+        me_r = requests.get(f"{API}/auth/me/", headers=_headers(request), timeout=8)
+        if me_r.status_code == 200:
+            me = me_r.json() or {}
+            class _MeProxy:
+                pass
+            proxy = _MeProxy()
+            proxy.plan = me.get("plan") or "none"
+            proxy.is_active_subscription = bool(me.get("is_active_subscription"))
+            can_create = can_use_flashcards(proxy)
+        else:
+            can_create = can_use_flashcards(request.user)
+    except Exception:
+        can_create = can_use_flashcards(request.user)
 
     ctx = {
         "lesson_id": lesson_id,
@@ -2122,12 +2230,27 @@ def web_flashcards_create_browse(request, lesson_id: int):
     if not _require_auth(request):
         return HttpResponse("Auth", status=401)
 
-    # ✅ أولاً: تأكد إن خطة المستخدم تسمح بإنشاء فلاش كاردز
-    if not can_use_flashcards(request.user):
-        # دى هتترمى جوه الـ hx-target بتاع الليست، فهتطلع رسالة صغيرة فوق
+    # Decide eligibility using /auth/me to support token-only sessions
+    allowed = False
+    try:
+        me_r = requests.get(f"{API}/auth/me/", headers=_headers(request), timeout=8)
+        if me_r.status_code == 200:
+            me = me_r.json() or {}
+            class _MeProxy:
+                pass
+            proxy = _MeProxy()
+            proxy.plan = me.get("plan") or "none"
+            proxy.is_active_subscription = bool(me.get("is_active_subscription"))
+            allowed = can_use_flashcards(proxy)
+        else:
+            allowed = can_use_flashcards(request.user)
+    except Exception:
+        allowed = can_use_flashcards(request.user)
+
+    if not allowed:
         return HttpResponse(
             '<div class="alert alert-warning small mb-0">'
-            'Flashcard creation is available for premium plans only.'
+            'Flashcard creation is available for premium or advanced plans.'
             '</div>',
             status=200,
         )

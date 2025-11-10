@@ -8,14 +8,14 @@
 <ul class="nav nav-pills mb-2">
   <li class="nav-item">
     <a class="nav-link {% if qtype == 'mcq' %}active{% endif %}"
-       hx-get="{% url 'web_questions_list' %}?qtype=mcq&limit={{ limit }}{% if subject_id %}&subject_id={{ subject_id }}{% endif %}{% if lesson_id %}&lesson_id={{ lesson_id }}{% endif %}{% if source %}&source={{ source }}{% endif %}{% if kind %}&kind={{ kind }}{% endif %}{% if exam_year %}&exam_year={{ exam_year }}{% endif %}{% if part_type %}&part_type={{ part_type }}{% endif %}"
+       hx-get="{% url 'web_questions_list' %}?qtype=mcq&limit={{ limit }}{% if subject_id %}&subject_id={{ subject_id }}{% endif %}{% if lesson_id %}&lesson_id={{ lesson_id }}{% endif %}{% if source %}&source={{ source }}{% endif %}{% if kind %}&kind={{ kind }}{% endif %}{% if exam_year %}&exam_year={{ exam_year }}{% endif %}{% if part_type %}&part_type={{ part_type }}{% endif %}{% if incorrect_only %}&incorrect_only=1{% endif %}"
        hx-target="#q-panel-body" hx-swap="innerHTML">
       MCQ
     </a>
   </li>
   <li class="nav-item">
     <a class="nav-link {% if qtype == 'written' %}active{% endif %}"
-       hx-get="{% url 'web_questions_list' %}?qtype=written&limit={{ limit }}{% if subject_id %}&subject_id={{ subject_id }}{% endif %}{% if lesson_id %}&lesson_id={{ lesson_id }}{% endif %}{% if source %}&source={{ source }}{% endif %}{% if kind %}&kind={{ kind }}{% endif %}{% if exam_year %}&exam_year={{ exam_year }}{% endif %}{% if part_type %}&part_type={{ part_type }}{% endif %}"
+       hx-get="{% url 'web_questions_list' %}?qtype=written&limit={{ limit }}{% if subject_id %}&subject_id={{ subject_id }}{% endif %}{% if lesson_id %}&lesson_id={{ lesson_id }}{% endif %}{% if source %}&source={{ source }}{% endif %}{% if kind %}&kind={{ kind }}{% endif %}{% if exam_year %}&exam_year={{ exam_year }}{% endif %}{% if part_type %}&part_type={{ part_type }}{% endif %}{% if incorrect_only %}&incorrect_only=1{% endif %}"
        hx-target="#q-panel-body" hx-swap="innerHTML">
       Written
     </a>
@@ -23,6 +23,11 @@
 </ul>
 
 <div class="card-soft p-3">
+  <div class="d-flex align-items-center justify-content-between mb-2">
+    <div class="fw-semibold">Filters</div>
+    <span class="spinner-border spinner-border-sm d-none htmx-indicator" role="status"></span>
+  </div>
+
   <form id="q-filter"
         class="row g-2 align-items-end"
         hx-get="{% url 'web_questions_list' %}"
@@ -33,16 +38,17 @@
       <input type="number" min="1" max="100" name="limit" value="{{ limit }}"
              class="form-control form-control-sm" style="width:120px;">
     </div>
+
     <input type="hidden" name="offset" value="0">
     <input type="hidden" name="qtype" value="{{ qtype }}">
 
-    {# نحافظ على كل الفلاتر #}
     {% if subject_id %}<input type="hidden" name="subject_id" value="{{ subject_id }}">{% endif %}
     {% if lesson_id %}<input type="hidden" name="lesson_id" value="{{ lesson_id }}">{% endif %}
     {% if source %}<input type="hidden" name="source" value="{{ source }}">{% endif %}
     {% if kind %}<input type="hidden" name="kind" value="{{ kind }}">{% endif %}
     {% if exam_year %}<input type="hidden" name="exam_year" value="{{ exam_year }}">{% endif %}
     {% if part_type %}<input type="hidden" name="part_type" value="{{ part_type }}">{% endif %}
+    {% if incorrect_only %}<input type="hidden" name="incorrect_only" value="1">{% endif %}
 
     <div class="col-auto">
       <button class="btn btn-primary btn-sm" type="submit">
@@ -51,15 +57,17 @@
       </button>
     </div>
 
-    <div class="col-auto ms-auto">
+    <div class="col-auto ms-auto d-flex gap-2">
       <button type="button" id="solve-all" class="btn btn-outline-primary btn-sm">
         <span class="spinner-border spinner-border-sm me-1 d-none" id="solve-all-spin" role="status"></span>
         Solve all
       </button>
-
       <button type="button" id="reveal-all" class="btn btn-outline-danger btn-sm d-none">
         <span class="spinner-border spinner-border-sm me-1 d-none" id="reveal-all-spin" role="status"></span>
         Show all answers
+      </button>
+      <button type="button" id="exam-mode-toggle" class="btn btn-warning btn-sm">
+        View exam mode
       </button>
     </div>
   </form>
@@ -77,15 +85,36 @@
   {% endif %}
 </div>
 
-{# نفس السكريبت بتاع الماتريال بالظبط #}
+{# ---------- Exam Mode container ---------- #}
+<div id="exam-mode" class="d-none mt-3">
+  <div class="card-soft p-3 mb-2 d-flex align-items-center justify-content-between">
+    <div class="fw-semibold">
+      Item <span id="exam-index">1</span> of
+      <span id="exam-total">{{ items|length }}</span>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <button type="button" id="exam-prev" class="btn btn-light btn-sm">← Previous</button>
+      <button type="button" id="exam-next" class="btn btn-light btn-sm">Next →</button>
+      <button type="button" id="exam-exit" class="btn btn-outline-secondary btn-sm">Exit</button>
+    </div>
+  </div>
+
+  <div class="q-card">
+    <div id="exam-detail" class="q-detail"></div>
+  </div>
+</div>
+
 <script>
   (function(){
-    const container = document.getElementById('q-list');
-
+    const container   = document.getElementById('q-list');
     const qs = (root, sel) => Array.from(root.querySelectorAll(sel));
+
+    // ======= Reveal-all / Solve-all =======
     const hasAnyRevealable = () => {
+      if (!container) return false;
       return !!container.querySelector('.q-card .q-reveal');
     };
+
     const setRevealAllVisible = (visible) => {
       const btn = document.getElementById('reveal-all');
       if (!btn) return;
@@ -101,7 +130,7 @@
       }
     });
 
-    const solveBtn = document.getElementById('solve-all');
+    const solveBtn  = document.getElementById('solve-all');
     const solveSpin = document.getElementById('solve-all-spin');
 
     if (solveBtn && container) {
@@ -146,7 +175,7 @@
       });
     }
 
-    const revealBtnAll = document.getElementById('reveal-all');
+    const revealBtnAll  = document.getElementById('reveal-all');
     const revealSpinAll = document.getElementById('reveal-all-spin');
 
     if (revealBtnAll && container) {
@@ -158,6 +187,7 @@
         revealSpinAll.classList.remove('d-none');
 
         let remaining = targets.length;
+
         const onSwapReveal = (ev) => {
           const tgt = ev.target;
           if (tgt && tgt.classList && tgt.classList.contains('q-detail')) {
@@ -179,5 +209,127 @@
         });
       });
     }
+
+    // ======= Exam mode (باستعمال نفس زرار Solve) =======
+    // ======= Exam mode (باستعمال نفس زرار Solve) =======
+    const examRoot    = document.getElementById('exam-mode');
+    const examDetail  = document.getElementById('exam-detail');
+    const examToggle  = document.getElementById('exam-mode-toggle');
+    const examPrev    = document.getElementById('exam-prev');
+    const examNext    = document.getElementById('exam-next');
+    const examExit    = document.getElementById('exam-exit');
+    const examIndexEl = document.getElementById('exam-index');
+    const examTotalEl = document.getElementById('exam-total');
+    const filterCard  = document.getElementById('q-filter')?.closest('.card-soft');
+
+    let examItems = [];   // [{card, solveBtn, originalTarget, originalGet}]
+    let examIdx   = 0;
+
+    function collectExamItems() {
+      if (!container) return;
+      examItems = qs(container, '.q-card').map(c => {
+        const solveBtn = c.querySelector('.q-solve');
+        return {
+          card: c,
+          solveBtn: solveBtn || null,
+          originalTarget: solveBtn ? solveBtn.getAttribute('hx-target') : null,
+          originalGet:    solveBtn ? solveBtn.getAttribute('hx-get')    : null,
+        };
+      }).filter(x => x.solveBtn);
+
+      if (examTotalEl) examTotalEl.textContent = examItems.length || 0;
+    }
+
+    function updateExamNav() {
+      if (examIndexEl) examIndexEl.textContent = (examIdx + 1);
+      if (examPrev) examPrev.disabled = (examIdx <= 0);
+      if (examNext) examNext.disabled = (examIdx >= examItems.length - 1);
+    }
+
+    function loadExamAt(i) {
+      if (!examItems.length) return;
+      examIdx = Math.min(Math.max(i, 0), examItems.length - 1);
+      const item = examItems[examIdx];
+      if (!item || !item.solveBtn) return;
+
+      if (examDetail) {
+        examDetail.innerHTML =
+          '<div class="text-muted small"><span class="spinner-border spinner-border-sm me-1"></span> Loading…</div>';
+      }
+
+      // 👈 نبنى URL فيه mode=exam
+      let url = item.originalGet || item.solveBtn.getAttribute('hx-get') || '';
+      if (url.indexOf('mode=exam') === -1) {
+        url += (url.indexOf('?') === -1 ? '?' : '&') + 'mode=exam';
+      }
+
+      // نخلى التارجِت exam-detail
+      item.solveBtn.setAttribute('hx-get', url);
+      item.solveBtn.setAttribute('hx-target', '#exam-detail');
+      item.solveBtn.setAttribute('hx-swap', 'innerHTML');
+
+      htmx.trigger(item.solveBtn, 'click');
+      updateExamNav();
+    }
+
+    function enterExamMode() {
+      collectExamItems();
+      if (!examItems.length) return;
+
+      filterCard?.classList.add('d-none');
+      container?.classList.add('d-none');
+      document.getElementById('q-load-more')?.classList.add('d-none');
+      examRoot?.classList.remove('d-none');
+
+      document.getElementById('solve-all')?.classList.add('d-none');
+      document.getElementById('reveal-all')?.classList.add('d-none');
+
+      examToggle.textContent = 'Exit exam mode';
+      loadExamAt(0);
+    }
+
+    function exitExamMode() {
+      // 👈 رجّع الـ targets و الـ URLs للأصل
+      examItems.forEach(item => {
+        if (item.solveBtn && item.originalTarget) {
+          item.solveBtn.setAttribute('hx-target', item.originalTarget);
+        }
+        if (item.solveBtn && item.originalGet) {
+          item.solveBtn.setAttribute('hx-get', item.originalGet);
+        }
+      });
+
+      examRoot?.classList.add('d-none');
+      filterCard?.classList.remove('d-none');
+      container?.classList.remove('d-none');
+      document.getElementById('q-load-more')?.classList.remove('d-none');
+      if (examDetail) examDetail.innerHTML = '';
+
+      examToggle.textContent = 'View exam mode';
+      document.getElementById('solve-all')?.classList.remove('d-none');
+      setRevealAllVisible(hasAnyRevealable());
+    }
+
+
+    examToggle?.addEventListener('click', () => {
+      if (examRoot.classList.contains('d-none')) enterExamMode();
+      else exitExamMode();
+    });
+
+    examPrev?.addEventListener('click', () => loadExamAt(examIdx - 1));
+    examNext?.addEventListener('click', () => loadExamAt(examIdx + 1));
+    examExit?.addEventListener('click', exitExamMode);
+
+    // بعد أى swap فى قائمة الأسئلة (Load / Load more / تغيير نوع)
+    document.body.addEventListener('htmx:afterSwap', (e) => {
+      if (!container) return;
+      if (container.contains(e.target)) {
+        collectExamItems();
+        if (!examRoot.classList.contains('d-none')) {
+          examIdx = Math.min(examIdx, Math.max(examItems.length - 1, 0));
+          updateExamNav();
+        }
+      }
+    });
   })();
 </script>

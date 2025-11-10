@@ -1,8 +1,8 @@
 <!-- {# templates/components/flashcards/_panel_chapters.html #} -->
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <div>
-    <h5 class="mb-0">{{ subject_name }}</h5>
-    <small class="text-muted">Choose a chapter to view its lessons.</small>
+  <div class="fc-title chapters">
+    <span class="accent"></span>
+    <h5 class="m-0">{{ subject_name }}</h5>
   </div>
   <button class="btn btn-link btn-sm"
           hx-get="{% url 'fc_panel_subjects' %}?module_id={{ request.GET.module_id|default:'' }}&module_name={{ request.GET.module_name|default:''|urlencode }}"
@@ -13,7 +13,7 @@
   </button>
 </div>
 
-<div class="list-group">
+<div class="list-group list-group-flush small fc-list">
   {% if chapters %}
     {% for c in chapters %}
       <button
@@ -21,10 +21,9 @@
         hx-get="{% url 'fc_panel_lessons' %}?chapter_id={{ c.id }}&subject_id={{ subject_id }}&subject_name={{ subject_name|urlencode }}&chapter_name={{ c.title|urlencode }}"
         hx-target="#fc-main-panel"
         hx-swap="innerHTML"
-        hx-indicator="#fc-main-spin"
-      >
+        hx-indicator="#fc-main-spin">
         <span>{{ c.title }}</span>
-        <span class="badge bg-light text-muted">lessons</span>
+        <span class="badge fc-badge">lessons</span>
       </button>
     {% endfor %}
   {% else %}

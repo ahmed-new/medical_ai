@@ -6,7 +6,7 @@ from .views import (
     FlashCardListCreate , FlashCardDetail,FavoriteLessonList, FavoriteLessonAdd, FavoriteLessonRemove, 
     FavoriteLessonIDs ,FlashcardCountView,LessonProgressCountView ,LessonMarkDoneView,
     PlannerTaskListCreate,PlannerToday,PlannerMarkDone,PlannerMarkUndone,PlannerDelete,StreakMessageView,LessonProgressIDs,StudentChapters
-    ,StudySessionListCreate,QuestionAttemptCreate ,QuestionAttemptsStats,QuestionReveal,HomeDashboardView,MaterialsHomeView ,LessonProgressList
+    ,StudySessionListCreate,QuestionAttemptCreate ,QuestionAttemptsStats,QuestionReveal,HomeDashboardView,MaterialsHomeView ,LessonProgressList,ExamYearsView, 
 )
 
 
@@ -23,7 +23,7 @@ urlpatterns = [
     path("api/v1/edu/flashcards/", FlashCardListCreate.as_view(), name="edu_flashcards"),
     path("api/v1/edu/flashcards/<int:pk>/", FlashCardDetail.as_view(), name="edu_flashcard_detail"),
     
-    
+    path("api/v1/edu/exam-years/", ExamYearsView.as_view(), name="edu_exam_years"),
    
     # flashcards count
     path("api/v1/edu/flashcards/count/", FlashcardCountView.as_view(), name="edu_flashcards_count"),

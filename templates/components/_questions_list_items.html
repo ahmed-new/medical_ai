@@ -5,15 +5,16 @@
         <div class="d-flex justify-content-between align-items-start gap-3">
           <div>
             <div class="fw-semibold">{{ q.text|default:"Question" }}</div>
-            <div class="small text-muted">
-              {{ q.question_type|default:"" }}{% if q.part_type %} · {{ q.part_type }}{% endif %}
-              {% if q.source_type %} · {{ q.source_type }}{% endif %}
-              {% if q.exam_kind %} · {{ q.exam_kind }}{% endif %}
-              {% if q.exam_year %} · {{ q.exam_year }}{% endif %}
+            <div class="small text-muted d-flex flex-wrap gap-1 mt-1">
+              {% if q.question_type %}<span class="badge bg-light text-muted">{{ q.question_type }}</span>{% endif %}
+              {% if q.part_type %}<span class="badge bg-light text-muted">{{ q.part_type }}</span>{% endif %}
+              {% if q.source_type %}<span class="badge bg-light text-muted">{{ q.source_type }}</span>{% endif %}
+              {% if q.exam_kind %}<span class="badge bg-light text-muted">{{ q.exam_kind }}</span>{% endif %}
+              {% if q.exam_year %}<span class="badge bg-light text-muted">{{ q.exam_year }}</span>{% endif %}
             </div>
           </div>
 
-          <button class="btn btn-outline-primary btn-sm q-solve"
+          <button class="btn btn-primary btn-sm q-solve"
                   hx-get="{% url 'web_question_detail' pk=q.id %}"
                   hx-target="#qdetail-{{ q.id }}"
                   hx-swap="innerHTML"

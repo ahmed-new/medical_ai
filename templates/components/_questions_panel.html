@@ -23,6 +23,10 @@
 </ul>
 
 <div class="card-soft p-3">
+  <div class="d-flex align-items-center justify-content-between mb-2">
+    <div class="fw-semibold">Filters</div>
+    <span class="spinner-border spinner-border-sm d-none htmx-indicator" role="status"></span>
+  </div>
   <form id="q-filter"
         class="row g-2 align-items-end"
         hx-get="{% url 'web_lesson_questions' lesson_id=lesson_id %}"

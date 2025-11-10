@@ -2,11 +2,11 @@
    expects: chapter_id, subject_id, subject_name, chapter_name, lessons #} -->
 
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <div>
-    <h5 class="mb-0">
+  <div class="fc-title lessons">
+    <span class="accent"></span>
+    <h5 class="m-0">
       {{ subject_name }}{% if chapter_name %} – {{ chapter_name }}{% endif %}
     </h5>
-    <small class="text-muted">Choose a lesson to view its flashcards.</small>
   </div>
   <button class="btn btn-link btn-sm"
           hx-get="{% url 'fc_panel_chapters' %}?subject_id={{ subject_id }}&subject_name={{ subject_name|urlencode }}"
@@ -17,7 +17,7 @@
   </button>
 </div>
 
-<div class="list-group">
+<div class="list-group list-group-flush small fc-list">
   {% if lessons %}
     {% for l in lessons %}
       <button
@@ -25,10 +25,9 @@
         hx-get="{% url 'fc_panel_flashcards' %}?lesson_id={{ l.id }}&subject_id={{ subject_id }}"
         hx-target="#fc-main-panel"
         hx-swap="innerHTML"
-        hx-indicator="#fc-main-spin"
-      >
+        hx-indicator="#fc-main-spin">
         <span>{{ l.title }}</span>
-        <span class="badge bg-light text-muted">flashcards</span>
+        <span class="badge fc-badge">flashcards</span>
       </button>
     {% endfor %}
   {% else %}

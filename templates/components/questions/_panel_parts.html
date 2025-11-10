@@ -1,39 +1,32 @@
 <div class="card-soft p-3">
   <h5 class="mb-3">Choose part</h5>
-  <div class="list-group">
-    <button
-      class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
-      {% if source == "exams" %}
-        hx-get="{% url 'q_panel_chapters' %}?subject_id={{ subject_id }}&part_type=theoretical&source=exams"
-      {% elif source == "old" %}
-        {# old finals → أسئلة على طول #}
-        hx-get="{% url 'q_panel_questions' %}?subject_id={{ subject_id }}&part_type=theoretical&source=old&kind={{ kind }}&exam_year={{ exam_year }}"
-      {% elif source == "exam_review" %}
-        hx-get="{% url 'q_panel_chapters' %}?subject_id={{ subject_id }}&part_type=theoretical&source=exam_review&kind={{ kind }}&exam_year={{ exam_year }}"
-      {% endif %}
-      hx-target="#q-main-panel"
-      hx-swap="innerHTML"
-      hx-indicator="#q-loading"
-    >
-      <span>Theoretical</span>
-      <span class="badge bg-light text-muted">open</span>
+  <div class="list-group list-group-flush small">
+    <button class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+            {% if source == "exams" %}
+              hx-get="{% url 'q_panel_chapters' %}?subject_id={{ subject_id }}&part_type=theoretical&source=exams"
+            {% elif source == "old" %}
+              hx-get="{% url 'q_panel_questions' %}?subject_id={{ subject_id }}&part_type=theoretical&source=old&kind={{ kind }}&exam_year={{ exam_year }}"
+            {% elif source == "exam_review" %}
+              hx-get="{% url 'q_panel_chapters' %}?subject_id={{ subject_id }}&part_type=theoretical&source=exam_review&kind={{ kind }}&exam_year={{ exam_year }}"
+            {% endif %}
+            hx-target="#q-main-panel" hx-swap="innerHTML" hx-indicator="#q-loading">
+      <span>Theoretical</span><span class="badge qb-badge">open</span>
     </button>
 
-    <button
-      class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
-      {% if source == "exams" %}
-        hx-get="{% url 'q_panel_chapters' %}?subject_id={{ subject_id }}&part_type=practical&source=exams"
-      {% elif source == "old" %}
-        hx-get="{% url 'q_panel_questions' %}?subject_id={{ subject_id }}&part_type=practical&source=old&kind={{ kind }}&exam_year={{ exam_year }}"
-      {% elif source == "exam_review" %}
-        hx-get="{% url 'q_panel_chapters' %}?subject_id={{ subject_id }}&part_type=practical&source=exam_review&kind={{ kind }}&exam_year={{ exam_year }}"
-      {% endif %}
-      hx-target="#q-main-panel"
-      hx-swap="innerHTML"
-      hx-indicator="#q-loading"
-    >
-      <span>Practical</span>
-      <span class="badge bg-light text-muted">open</span>
+    <button class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+            {% if source == "exams" %}
+              hx-get="{% url 'q_panel_chapters' %}?subject_id={{ subject_id }}&part_type=practical&source=exams"
+            {% elif source == "old" %}
+              hx-get="{% url 'q_panel_questions' %}?subject_id={{ subject_id }}&part_type=practical&source=old&kind={{ kind }}&exam_year={{ exam_year }}"
+            {% elif source == "exam_review" %}
+              hx-get="{% url 'q_panel_chapters' %}?subject_id={{ subject_id }}&part_type=practical&source=exam_review&kind={{ kind }}&exam_year={{ exam_year }}"
+            {% endif %}
+            hx-target="#q-main-panel" hx-swap="innerHTML" hx-indicator="#q-loading">
+      <span>Practical</span><span class="badge qb-badge">open</span>
     </button>
   </div>
+</div>
+<div class="qb-title parts mb-3">
+  <span class="accent"></span>
+  <h5 class="m-0">Parts</h5>
 </div>

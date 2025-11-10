@@ -174,7 +174,6 @@ class PurchaseSubscriptionView(APIView):
         if not plan_code:
             return Response({"error": "plan_code is required."}, status=400)
 
-        # تحقُّق صريح إن الخطة موجودة وفعّالة قبل نداء الخدمة
         try:
             Plan.objects.get(code=plan_code, is_active=True)
         except Plan.DoesNotExist:

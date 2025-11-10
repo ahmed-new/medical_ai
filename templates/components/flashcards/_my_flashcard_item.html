@@ -1,86 +1,97 @@
-{# expects: fc dict: id, question, answer, order #}
+{# expects: fc dict: id, question, answer, order, owner_type (optional) #}
 
-<div class="fc-flip" id="fc-my-{{ fc.id }}">
-  <div class="fc-inner" data-flip>
-    <div class="fc-front">
-      <div class="fc-title small text-muted mb-1">Front</div>
-      <div class="fc-text">
-        {{ fc.question|safe }}
-      </div>
-    </div>
+<div class="fc-slide">
+  <div class="fc-flip" id="fc-my-{{ fc.id }}">
+    <div class="fc-inner" data-flip>
 
-    <div class="fc-back">
-      {# ---- وضع العرض ---- #}
-      <div class="fc-view">
-        <div class="fc-title small text-muted mb-1">Back</div>
-        <div class="fc-text mb-2">
-          {% if fc.answer %}
-            {{ fc.answer|safe }}
-          {% else %}
-            <span class="text-muted">— No answer —</span>
-          {% endif %}
-        </div>
-        <div class="d-flex justify-content-between align-items-center mt-2">
-          <span class="badge text-bg-light">#{{ fc.order }}</span>
-          <div class="d-flex gap-2">
-            <button type="button"
-                    class="btn btn-outline-secondary btn-sm fc-edit-toggle">
-              Edit
-            </button>
-            <button class="btn btn-outline-danger btn-sm"
-                    hx-delete="{% url 'web_flashcard_delete' pk=fc.id %}"
-                    hx-target="closest .fc-flip"
-                    hx-swap="outerHTML">
-              <span class="spinner-border spinner-border-sm me-1 htmx-indicator" role="status"></span>
-              Delete
-            </button>
-          </div>
+      {# -------- Front (السؤال) -------- #}
+      <div class="fc-front">
+        <div class="fc-title small text-muted mb-1">Front</div>
+        <div class="fc-text">
+          {{ fc.question|safe }}
         </div>
       </div>
 
-      {# ---- وضع التعديل ---- #}
-      <form class="fc-edit d-none mt-2"
-            hx-post="{% url 'web_flashcard_update' pk=fc.id %}"
-            hx-target="closest .fc-flip"
-            hx-swap="outerHTML">
-        {% csrf_token %}
-        <div class="mb-2">
-          <label class="form-label small">Question</label>
-          <textarea name="question"
-                    class="form-control form-control-sm"
-                    rows="2"
-                    required>{{ fc.question }}</textarea>
-        </div>
-        <div class="mb-2">
-          <label class="form-label small">Answer</label>
-          <textarea name="answer"
-                    class="form-control form-control-sm"
-                    rows="2">{{ fc.answer }}</textarea>
-        </div>
-        <div class="d-flex justify-content-between align-items-center">
-          <div class="d-flex align-items-center gap-2">
-            <label class="form-label small mb-0">Order</label>
-            <input type="number" name="order"
-                   value="{{ fc.order|default:1 }}"
-                   min="1"
-                   class="form-control form-control-sm"
-                   style="width:80px;">
+      {# -------- Back (الإجابة + الأكشنز) -------- #}
+      <div class="fc-back">
+
+        {# ===== وضع العرض ===== #}
+        <div class="fc-view">
+          <div class="fc-title small text-muted mb-1">Back</div>
+          <div class="fc-text mb-2">
+            {% if fc.answer %}
+              {{ fc.answer|safe }}
+            {% else %}
+              <span class="text-muted">— No answer —</span>
+            {% endif %}
           </div>
-          <div class="d-flex gap-2">
-            <button type="button"
-                    class="btn btn-light btn-sm fc-edit-cancel">
-              Cancel
-            </button>
-            <button class="btn btn-primary btn-sm">
-              <span class="spinner-border spinner-border-sm me-1 htmx-indicator" role="status"></span>
-              Save
-            </button>
+
+          <div class="d-flex justify-content-between align-items-center mt-2 w-100">
+            {% if fc.owner_type == "user" or owner_type == "user" %}
+              <span class="badge text-bg-light">#{{ fc.order|default:1 }}</span>
+              <div class="d-flex gap-2">
+                <button type="button"
+                        class="btn btn-outline-secondary btn-sm fc-edit-toggle">
+                  Edit
+                </button>
+                <button class="btn btn-outline-danger btn-sm"
+                        hx-delete="{% url 'web_flashcard_delete' pk=fc.id %}"
+                        hx-target="closest .fc-slide"
+                        hx-swap="outerHTML">
+                  <span class="spinner-border spinner-border-sm me-1 htmx-indicator" role="status"></span>
+                  Delete
+                </button>
+              </div>
+            {% else %}
+              <span class="badge text-bg-light ms-auto">Admin</span>
+            {% endif %}
           </div>
         </div>
-      </form>
-    </div>
-  </div>
-</div>
 
+        {# ===== وضع التعديل (لـ user فقط) ===== #}
+        {% if fc.owner_type == "user" or owner_type == "user" %}
+          <form class="fc-edit d-none mt-2"
+                hx-post="{% url 'web_flashcard_update' pk=fc.id %}"
+                hx-target="closest .fc-slide"
+                hx-swap="outerHTML">
+            {% csrf_token %}
+            <div class="mb-2">
+              <label class="form-label small">Question</label>
+              <textarea name="question"
+                        class="form-control form-control-sm"
+                        rows="2"
+                        required>{{ fc.question }}</textarea>
+            </div>
+            <div class="mb-2">
+              <label class="form-label small">Answer</label>
+              <textarea name="answer"
+                        class="form-control form-control-sm"
+                        rows="2">{{ fc.answer }}</textarea>
+            </div>
+            <div class="d-flex justify-content-between align-items-center w-100">
+              <div class="d-flex align-items-center gap-2">
+                <label class="form-label small mb-0">Order</label>
+                <input type="number" name="order"
+                       value="{{ fc.order|default:1 }}"
+                       min="1"
+                       class="form-control form-control-sm"
+                       style="width:80px;">
+              </div>
+              <div class="d-flex gap-2">
+                <button type="button"
+                        class="btn btn-light btn-sm fc-edit-cancel">
+                  Cancel
+                </button>
+                <button class="btn btn-primary btn-sm">
+                  <span class="spinner-border spinner-border-sm me-1 htmx-indicator" role="status"></span>
+                  Save
+                </button>
+              </div>
+            </div>
+          </form>
+        {% endif %}
 
-
+      </div> {# /fc-back #}
+    </div>   {# /fc-inner #}
+  </div>     {# /fc-flip #}
+</div>       {# /fc-slide #}

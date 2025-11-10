@@ -83,35 +83,35 @@ PLAN_POLICIES = {
 }
 
 
-def get_policy(user: User):
-    plan = (user.plan or "none").lower()
-    return PLAN_POLICIES.get(plan, PLAN_POLICIES["none"])
+def _plan(user) -> str:
+    p = getattr(user, "plan", None)
+    if isinstance(p, str):
+        return (p or "none").lower()
+    return "none"
 
+def _active(user) -> bool:
+    return bool(getattr(user, "is_active_subscription", False))
+
+def get_policy(user: User):
+    plan = _plan(user)
+    return PLAN_POLICIES.get(plan, PLAN_POLICIES["none"])
 
 def sources_allowed(user: User) -> Set[str]:
     return get_policy(user)["sources"]
 
-
 def can_view_questions(user: User) -> bool:
-    return bool(user.is_active_subscription) and bool(sources_allowed(user))
-
+    return _active(user) and bool(sources_allowed(user))
 
 def flashcard_visibility_q(user: User) -> Q:
-    plan = (user.plan or "none").lower()
+    plan = _plan(user)
     if plan in ("none", "basic"):
         return Q(owner_type="user", owner=user)
     elif plan in ("premium", "advanced"):
         return Q(owner_type="admin") | Q(owner_type="user", owner=user)
     return Q(owner_type="user", owner=user)
 
-
 def can_view_lesson_content(user: User) -> bool:
-    return bool(user.is_active_subscription) and (user.plan or "none") != "none"
-
+    return _active(user) and _plan(user) != "none"
 
 def can_use_flashcards(user: User) -> bool:
-    """
-    يسمح بإنشاء فلاش كاردز فقط للباقات premium و advanced.
-    لازم الاشتراك يكون فعّال.
-    """
-    return bool(user.is_active_subscription) and (user.plan or "none").lower() in ("premium", "advanced")
+    return _active(user) and _plan(user) in ("premium", "advanced")
