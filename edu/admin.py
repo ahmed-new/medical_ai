@@ -81,8 +81,9 @@ class LessonAdmin(admin.ModelAdmin):
 class QuestionOptionInline(admin.TabularInline):
     model = QuestionOption
     extra = 4   # يظهر 4 حقول افتراضيًا
-    min_num = 4
+    min_num = 0
     max_num = 4
+    validate_min = False
 
 class QuestionAdminForm(forms.ModelForm):
     explanation = forms.CharField(
