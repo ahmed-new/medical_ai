@@ -8,14 +8,14 @@
 <ul class="nav nav-pills mb-2">
   <li class="nav-item">
     <a class="nav-link {% if qtype == 'mcq' %}active{% endif %}"
-       hx-get="{% url 'web_questions_list' %}?qtype=mcq&limit={{ limit }}{% if subject_id %}&subject_id={{ subject_id }}{% endif %}{% if lesson_id %}&lesson_id={{ lesson_id }}{% endif %}{% if source %}&source={{ source }}{% endif %}{% if kind %}&kind={{ kind }}{% endif %}{% if exam_year %}&exam_year={{ exam_year }}{% endif %}{% if part_type %}&part_type={{ part_type }}{% endif %}{% if incorrect_only %}&incorrect_only=1{% endif %}"
+       hx-get="{% url 'web_questions_list' %}?qtype=mcq&limit={{ limit }}{% if subject_id %}&subject_id={{ subject_id }}{% endif %}{% if lesson_id %}&lesson_id={{ lesson_id }}{% endif %}{% if source %}&source={{ source }}{% endif %}{% if kind %}&kind={{ kind }}{% endif %}{% if exam_year %}&exam_year={{ exam_year }}{% endif %}{% if part_type %}&part_type={{ part_type }}{% endif %}&offset={{ offset }}"
        hx-target="#q-panel-body" hx-swap="innerHTML">
       MCQ
     </a>
   </li>
   <li class="nav-item">
     <a class="nav-link {% if qtype == 'written' %}active{% endif %}"
-       hx-get="{% url 'web_questions_list' %}?qtype=written&limit={{ limit }}{% if subject_id %}&subject_id={{ subject_id }}{% endif %}{% if lesson_id %}&lesson_id={{ lesson_id }}{% endif %}{% if source %}&source={{ source }}{% endif %}{% if kind %}&kind={{ kind }}{% endif %}{% if exam_year %}&exam_year={{ exam_year }}{% endif %}{% if part_type %}&part_type={{ part_type }}{% endif %}{% if incorrect_only %}&incorrect_only=1{% endif %}"
+       hx-get="{% url 'web_questions_list' %}?qtype=written&limit={{ limit }}{% if subject_id %}&subject_id={{ subject_id }}{% endif %}{% if lesson_id %}&lesson_id={{ lesson_id }}{% endif %}{% if source %}&source={{ source }}{% endif %}{% if kind %}&kind={{ kind }}{% endif %}{% if exam_year %}&exam_year={{ exam_year }}{% endif %}{% if part_type %}&part_type={{ part_type }}{% endif %}&offset={{ offset }}"
        hx-target="#q-panel-body" hx-swap="innerHTML">
       Written
     </a>
@@ -39,7 +39,14 @@
              class="form-control form-control-sm" style="width:120px;">
     </div>
 
-    <input type="hidden" name="offset" value="0">
+    <!-- NEW: visible offset input -->
+    <div class="col-auto">
+      <label class="form-label small">Start from question #</label>
+      <input type="number" min="0" name="offset" value="{{ offset }}"
+             class="form-control form-control-sm" style="width:120px;">
+    </div>
+
+    <!-- keep qtype as hidden -->
     <input type="hidden" name="qtype" value="{{ qtype }}">
 
     {% if subject_id %}<input type="hidden" name="subject_id" value="{{ subject_id }}">{% endif %}

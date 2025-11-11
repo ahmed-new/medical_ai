@@ -8,14 +8,14 @@
 <ul class="nav nav-pills mb-2">
   <li class="nav-item">
     <a class="nav-link {% if qtype == 'mcq' %}active{% endif %}"
-       hx-get="{% url 'web_lesson_questions' lesson_id=lesson_id %}?limit={{ limit }}&qtype=mcq"
+       hx-get="{% url 'web_lesson_questions' lesson_id=lesson_id %}?limit={{ limit }}&offset={{ offset }}&qtype=mcq"
        hx-target="#tab-questions" hx-swap="innerHTML">
       MCQ
     </a>
   </li>
   <li class="nav-item">
     <a class="nav-link {% if qtype == 'written' %}active{% endif %}"
-       hx-get="{% url 'web_lesson_questions' lesson_id=lesson_id %}?limit={{ limit }}&qtype=written"
+       hx-get="{% url 'web_lesson_questions' lesson_id=lesson_id %}?limit={{ limit }}&offset={{ offset }}&qtype=written"
        hx-target="#tab-questions" hx-swap="innerHTML">
       Written
     </a>
@@ -23,10 +23,6 @@
 </ul>
 
 <div class="card-soft p-3">
-  <div class="d-flex align-items-center justify-content-between mb-2">
-    <div class="fw-semibold">Filters</div>
-    <span class="spinner-border spinner-border-sm d-none htmx-indicator" role="status"></span>
-  </div>
   <form id="q-filter"
         class="row g-2 align-items-end"
         hx-get="{% url 'web_lesson_questions' lesson_id=lesson_id %}"
@@ -37,7 +33,15 @@
       <input type="number" min="1" max="100" name="limit" value="{{ limit }}"
              class="form-control form-control-sm" style="width:120px;">
     </div>
-    <input type="hidden" name="offset" value="0">
+
+    <!-- NEW: visible offset input -->
+    <div class="col-auto">
+      <label class="form-label small">Start from question #</label>
+      <input type="number" min="0" name="offset" value="{{ offset }}"
+             class="form-control form-control-sm" style="width:120px;">
+    </div>
+
+    <!-- keep qtype as hidden -->
     <input type="hidden" name="qtype" value="{{ qtype }}">
 
     <div class="col-auto">

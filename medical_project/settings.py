@@ -11,7 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
-from decouple import config
+from decouple import config , Csv
 import os , json
 from google.oauth2 import service_account
 
@@ -24,12 +24,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-2vkel*^+rjo4_k$m%$#)i55r+_0(mep^=d-d01%w2itz-@zamo'
+
+SECRET_KEY = config('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', cast=Csv(), default='localhost,127.0.0.1')
+
 
 
 # Application definition
@@ -57,6 +59,25 @@ INSTALLED_APPS = [
     "whitenoise.runserver_nostatic",
 
 ]
+
+
+CSRF_TRUSTED_ORIGINS = config(
+    'CSRF_TRUSTED_ORIGINS',
+    cast=Csv(),
+    default='http://localhost,http://127.0.0.1'
+)
+# .
+
+
+
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', cast=bool, default=True)
+SESSION_COOKIE_SECURE = config('SESSION_COOKIE_SECURE', cast=bool, default=True)
+CSRF_COOKIE_SECURE = config('CSRF_COOKIE_SECURE', cast=bool, default=True)
+
+
+
+
 
 # CKEDITOR_STORAGE_BACKEND = "cloudinary_storage.storage.MediaCloudinaryStorage"
 CKEDITOR_STORAGE_BACKEND = "storages.backends.gcloud.GoogleCloudStorage"
@@ -198,14 +219,13 @@ WSGI_APPLICATION = 'medical_project.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'medical_ai',
-        'USER': 'ahmed',
-        'PASSWORD': 'Upcomingrich@1',
-        'HOST': '31.97.58.109',
-        'PORT': '5432',
+        'NAME': config('DB_NAME'),
+        'USER': config('DB_USER'),
+        'PASSWORD': config('DB_PASSWORD'),
+        'HOST': config('DB_HOST'),
+        'PORT': config('DB_PORT', default='5432'),
     }
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -256,7 +276,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 # === Environment / RAG settings ===
-GOOGLE_API_KEY= config("GOOGLE_API_KEY", default="AIzaSyC0ZNNgnaokxprH5jBnxwdTUZjWS-1iegw")
+GOOGLE_API_KEY= config("GOOGLE_API_KEY")
 FAISS_INDEX_FILE   = config("FAISS_INDEX_FILE", default=os.path.join(BASE_DIR, "faiss_index.index"))
 GEMINI_EMBED_MODEL = config("GEMINI_EMBED_MODEL", default="text-embedding-004")   # بُعد 768
 GEMINI_GEN_MODEL   = config("GEMINI_GEN_MODEL", default="gemini-2.5-flash-lite")
